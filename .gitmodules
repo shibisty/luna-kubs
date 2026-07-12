@@ -1,0 +1,6 @@
+[submodule "luna-auth"]
+	path = luna-auth
+	url = https://github.com/shibisty/luna-auth.git
+[submodule "luna-dashboard"]
+	path = luna-dashboard
+	url = https://github.com/shibisty/luna-dashboard.git
