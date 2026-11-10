@@ -2,19 +2,18 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: auth
 spec:
-  ports:
-    - port: 5432
-      targetPort: 5432
+  clusterIP: None
   selector:
     app: postgres
+  ports:
+    - name: postgres
+      port: 5432
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: postgres
-  namespace: auth
 spec:
   serviceName: postgres
   replicas: 1
@@ -28,34 +27,57 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:18-alpine
+          # postgres/Dockerfile: TLS (generate-tls.sh) and the Luna databases
+          # (docker-entrypoint-initdb.d/10-luna.sh).
+          image: luna-postgres:18
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - /usr/local/bin/generate-tls.sh && exec /usr/local/bin/docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf -c hba_file=/etc/postgresql/pg_hba.conf
           ports:
-            - containerPort: 5432
+            - name: postgres
+              containerPort: 5432
           env:
             - name: POSTGRES_DB
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: POSTGRES_DB
+              value: auth_db
             - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: POSTGRES_USER
+              value: auth
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
             - name: POSTGRES_PASSWORD
               valueFrom:
-                secretKeyRef:
-                  name: postgres-secrets
-                  key: POSTGRES_PASSWORD
+                secretKeyRef: {name: luna-secrets, key: POSTGRES_PASSWORD}
+            - name: AUTH_DB_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: luna-secrets, key: AUTH_DB_PASSWORD}
+            - name: DASHBOARD_DB_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: luna-secrets, key: DASHBOARD_DB_PASSWORD}
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "auth", "-d", "auth_db"]
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "auth", "-d", "auth_db"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 512Mi}
           volumeMounts:
-            - name: postgres-data
+            - name: data
               mountPath: /var/lib/postgresql/data
+            - name: tls
+              mountPath: /var/lib/postgresql/tls
+      volumes:
+        - name: tls
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
-        name: postgres-data
+        name: data
       spec:
-        accessModes:
-          - ReadWriteOnce
+        accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: 10Gi
+            storage: 2Gi

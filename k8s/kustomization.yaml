@@ -1,10 +1,36 @@
+# Luna on Kubernetes (minikube locally):
+#
+#   cp k8s/secrets.env.example k8s/secrets.env   # fill in, see the file
+#   kubectl apply -k k8s
+#
+# Images are the ones docker compose builds (luna-*:local); load them into
+# the cluster first, see README.md.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: auth
+namespace: luna
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: luna
 resources:
   - namespace.yaml
-  - secrets.yaml
-  - configmap.yaml
   - postgres.yaml
+  - dashboard.yaml
   - auth.yaml
   - nginx.yaml
+  - networkpolicy.yaml
+configMapGenerator:
+  - name: luna-config
+    literals:
+      - APP_ENV=local
+      - HTTP_TRUSTED_PROXIES=private
+      - API_DOCS=true
+      - DB_DRIVER=postgres
+      - LUNA_DASHBOARD_URL=http://luna-dashboard:8080
+  - name: nginx-sites
+    files:
+      - nginx/auth.luna.conf
+      - nginx/dashboard.luna.conf
+secretGenerator:
+  - name: luna-secrets
+    envs:
+      - secrets.env

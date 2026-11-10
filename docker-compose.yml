@@ -1,3 +1,48 @@
+# Luna, locally: postgres, the two Go services behind nginx, and mail.
+#
+#   cp .env.example .env            # then fill in the secrets (see the file)
+#   docker compose build            # GITHUB_TOKEN in .env or the shell
+#   docker compose up -d
+#
+# Only nginx (80/443), postgres (127.0.0.1:5433, for `gtr dev`) and mail
+# publish ports. The services talk over luna-net; luna-auth checks API keys
+# against luna-dashboard's internal API, which nginx does not expose.
+
+x-app-build: &app-build
+  context: .
+  dockerfile: docker/app.Dockerfile
+  secrets:
+    - github_token
+
+x-dashboard-env: &dashboard-env
+  APP_NAME: luna-dashboard
+  APP_ENV: ${APP_ENV:-local}
+  APP_URL: https://${DASHBOARD_DOMAIN:-dashboard.luna.local}
+  HTTP_ADDR: ":8080"
+  HTTP_TRUSTED_PROXIES: private
+  API_DOCS: "true"
+  DB_DRIVER: postgres
+  DATABASE_DSN: postgres://dashboard_user:${DASHBOARD_DB_PASSWORD:-dashboard_password}@postgres:5432/dashboard?sslmode=require
+  LUNA_SERVICE_TOKENS: ${LUNA_SERVICE_TOKEN:?set LUNA_SERVICE_TOKEN in .env (luna-cli key:generate --name LUNA_SERVICE_TOKEN)}
+
+x-auth-env: &auth-env
+  APP_NAME: luna-auth
+  APP_ENV: ${APP_ENV:-local}
+  APP_URL: https://${AUTH_DOMAIN:-auth.luna.local}
+  HTTP_ADDR: ":8080"
+  HTTP_TRUSTED_PROXIES: private
+  API_DOCS: "true"
+  DB_DRIVER: postgres
+  DATABASE_DSN: postgres://auth_service:${AUTH_DB_PASSWORD:-auth_password}@postgres:5432/auth_db?sslmode=require
+  AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?set AUTH_JWT_SECRET in .env (luna-cli key:generate)}
+  LUNA_DASHBOARD_URL: http://luna-dashboard:8080
+  LUNA_DASHBOARD_TOKEN: ${LUNA_SERVICE_TOKEN:?set LUNA_SERVICE_TOKEN in .env}
+  MAIL_HOST: ${AUTH_MAIL_HOST:-}
+  MAIL_PORT: ${AUTH_MAIL_PORT:-587}
+  MAIL_USERNAME: ${AUTH_MAIL_USERNAME:-}
+  MAIL_PASSWORD: ${AUTH_MAIL_PASSWORD:-}
+  MAIL_FROM: ${AUTH_MAIL_FROM:-Luna <no-reply@luna.local>}
+
 services:
   certbot-init:
     image: alpine:3.20
@@ -7,30 +52,12 @@ services:
       - ./certbot/init-dummy-certs.sh:/init-dummy-certs.sh:ro
       - certbot_conf:/etc/letsencrypt
     environment:
-      - API_DOMAIN=${AUTH_DOMAIN}
-      - FRONTEND_DOMAIN=${DASHBOARD_DOMAIN}
-      - MAIL_DOMAIN=${MAIL_DOMAIN}
+      AUTH_DOMAIN: ${AUTH_DOMAIN:-auth.luna.local}
+      DASHBOARD_DOMAIN: ${DASHBOARD_DOMAIN:-dashboard.luna.local}
+      MAIL_DOMAIN: ${MAIL_DOMAIN:-mail.luna.local}
     networks:
       - luna-net
-  nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    image: luna-nginx:local
-    container_name: luna-nginx
-    restart: unless-stopped
-    depends_on:
-      - certbot-init
-      - luna-auth
-      - luna-dashboard
-    volumes:
-      - ./nginx/sites:/etc/nginx/sites-available
-      - ./nginx/ssl:/etc/nginx/ssl
-    ports:
-      - "80:80"
-      - "443:443"
-    networks:
-      - luna-net
+
   postgres:
     build:
       context: ./postgres
@@ -40,11 +67,15 @@ services:
     restart: unless-stopped
     entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate-tls.sh && exec /usr/local/bin/docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf -c hba_file=/etc/postgresql/pg_hba.conf"]
     environment:
+      # The superuser. These, and the two service passwords below, apply only
+      # when the data volume is created; change them later with ALTER ROLE.
       POSTGRES_DB: auth_db
       POSTGRES_USER: auth
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth_password}
+      DASHBOARD_DB_PASSWORD: ${DASHBOARD_DB_PASSWORD:-dashboard_password}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - postgres-tls:/var/lib/postgresql/tls
@@ -57,21 +88,112 @@ services:
     networks:
       - luna-net
 
+  # One-shot: applies pending migrations, then exits; the service waits for it.
+  luna-dashboard-migrate:
+    build:
+      <<: *app-build
+      args:
+        SERVICE: luna-dashboard
+    image: luna-dashboard:local
+    command: ["migrate"]
+    restart: "no"
+    healthcheck:
+      disable: true
+    environment: *dashboard-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - luna-net
+
+  luna-dashboard:
+    build:
+      <<: *app-build
+      args:
+        SERVICE: luna-dashboard
+    image: luna-dashboard:local
+    container_name: luna-dashboard
+    restart: unless-stopped
+    environment: *dashboard-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      luna-dashboard-migrate:
+        condition: service_completed_successfully
+    networks:
+      - luna-net
+
+  luna-auth-migrate:
+    build:
+      <<: *app-build
+      args:
+        SERVICE: luna-auth
+    image: luna-auth:local
+    command: ["migrate"]
+    restart: "no"
+    healthcheck:
+      disable: true
+    environment: *auth-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - luna-net
+
+  luna-auth:
+    build:
+      <<: *app-build
+      args:
+        SERVICE: luna-auth
+    image: luna-auth:local
+    container_name: luna-auth
+    restart: unless-stopped
+    environment: *auth-env
+    depends_on:
+      luna-auth-migrate:
+        condition: service_completed_successfully
+      luna-dashboard:
+        condition: service_healthy
+    networks:
+      - luna-net
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: luna-nginx:local
+    container_name: luna-nginx
+    restart: unless-stopped
+    depends_on:
+      certbot-init:
+        condition: service_completed_successfully
+      luna-auth:
+        condition: service_healthy
+      luna-dashboard:
+        condition: service_healthy
+    volumes:
+      - ./nginx/sites:/etc/nginx/sites-available
+      - ./nginx/ssl:/etc/nginx/ssl
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - luna-net
+
   mail:
     depends_on:
       - certbot-init
     build:
       context: ./mail
     restart: unless-stopped
-    hostname: mail.${MAIL_DOMAIN}
+    hostname: mail.${MAIL_DOMAIN:-mail.luna.local}
     environment:
-      - MAIL_DOMAIN=${MAIL_DOMAIN}
-      - MAIL_USERNAME=${MAIL_USERNAME}
-      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_DOMAIN=${MAIL_DOMAIN:-mail.luna.local}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
     volumes:
       - mail_data:/var/mail/vhosts
       - certbot_conf:/etc/letsencrypt:ro
-      # - ./locale_ssl:/etc/letsencrypt:ro
     ports:
       - "25:25"
       - "587:587"
@@ -97,7 +219,7 @@ services:
       ROUNDCUBEMAIL_DB_TYPE: sqlite
 
       ROUNDCUBEMAIL_CONFIG_DEFAULTS: |
-        $config['imap_conn_options'] = [
+        $$config['imap_conn_options'] = [
           'ssl' => [
             'verify_peer' => false,
             'verify_peer_name' => false,
@@ -105,7 +227,7 @@ services:
           ],
         ];
 
-        $config['smtp_conn_options'] = [
+        $$config['smtp_conn_options'] = [
           'ssl' => [
             'verify_peer' => false,
             'verify_peer_name' => false,
@@ -119,56 +241,15 @@ services:
     networks:
       - luna-net
 
-  luna-auth:
-    build:
-      context: ./luna-auth
-      dockerfile: Dockerfile
-    image: luna-auth:latest
-    container_name: luna-auth
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: auth_db
-      DB_USER: auth_service
-      DB_PASSWORD: auth_password
-      DB_SSLMODE: require
-      DB_SSLROOTCERT: /etc/postgresql/tls/ca.crt
-      SECRET_KEY: super-secret-key
-    volumes:
-      - postgres-tls:/etc/postgresql/tls:ro
-    ports:
-      - "8080:8080"
-    networks:
-      - luna-net
-
-  luna-dashboard:
-    build:
-      context: ./luna-dashboard
-      dockerfile: Dockerfile
-    image: luna-dashboard:latest
-    container_name: luna-dashboard
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://dashboard_user:dashboard_password@postgres:5432/dashboard?schema=public&sslmode=require&sslrootcert=/etc/postgresql/tls/ca.crt
-      PORT: 3000
-    volumes:
-      - postgres-tls:/etc/postgresql/tls:ro
-    ports:
-      - "3000:3000"
-    networks:
-      - luna-net
+# The service images fetch packages through the GitHub API while building;
+# a token (any, read-only public access is enough) lifts the anonymous limit.
+secrets:
+  github_token:
+    environment: GITHUB_TOKEN
 
 volumes:
   postgres-data:
   postgres-tls:
-  storage_data:
   mail_data:
   certbot_conf:
   certbot_www:

@@ -1,0 +1,22 @@
+# The build context is the repository root (docker/app.Dockerfile).
+# Allow-list: only what a service build needs goes to the daemon.
+*
+!gtr.json
+!gtr.lock
+!luna-keys/
+!luna-cli/
+!luna-dashboard/
+!luna-auth/
+
+# Never: local secrets, build output, generated module files.
+**/.env
+**/.env.*
+!**/.env.example
+**/build/
+**/gtr_modules/
+**/go.mod
+**/go.sum
+**/go.work
+**/go.work.sum
+**/.git
+**/node_modules/

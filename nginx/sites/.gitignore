@@ -1,2 +1,5 @@
 *.conf
 !default.conf
+!auth.luna.conf
+!dashboard.luna.conf
+!mail.luna.conf

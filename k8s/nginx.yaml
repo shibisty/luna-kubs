@@ -1,118 +1,25 @@
+# The edge: TLS (a self-signed default.crt that startup.sh creates in the
+# emptyDir) and the two hosts. `minikube tunnel` gives the Service an address.
 apiVersion: v1
-kind: ConfigMap
+kind: Service
 metadata:
-  name: nginx-config
-  namespace: auth
-data:
-  nginx.conf: |
-    user www-data;
-    worker_processes 4;
-    pid /run/nginx.pid;
-    daemon off;
-
-    events {
-      worker_connections  2048;
-      multi_accept on;
-      use epoll;
-    }
-
-    http {
-      server_tokens off;
-      sendfile on;
-      tcp_nopush on;
-      tcp_nodelay on;
-      keepalive_timeout 15;
-      types_hash_max_size 2048;
-      client_max_body_size 20M;
-      include /etc/nginx/mime.types;
-      default_type application/octet-stream;
-      access_log /dev/stdout;
-      error_log /dev/stderr;
-      gzip on;
-      gzip_disable "msie6";
-      gzip_comp_level 5;
-      gzip_min_length 256;
-      gzip_proxied any;
-      gzip_vary on;
-
-      gzip_types
-      application/atom+xml
-      application/javascript
-      application/json
-      application/rss+xml
-      application/vnd.ms-fontobject
-      application/x-font-ttf
-      application/x-web-app-manifest+json
-      application/xhtml+xml
-      application/xml
-      font/opentype
-      image/svg+xml
-      image/x-icon
-      text/css
-      text/plain
-      text/x-component;
-      
-      ssl_protocols TLSv1.2 TLSv1.3;
-      ssl_ciphers 'ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA:ECDHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES256-SHA:ECDHE-ECDSA-DES-CBC3-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:DES-CBC3-SHA:!DSS';
-      
-      include /etc/nginx/conf.d/*.conf;
-      include /etc/nginx/sites-available/*.conf;
-      open_file_cache off;
-      charset UTF-8;
-    }
-  
-  auth.luna.conf: |
-    server {
-        listen 80;
-        listen [::]:80;
-        listen 443 ssl;
-        listen [::]:443 ssl ipv6only=on;
-        ssl_certificate /etc/nginx/ssl/default.crt;
-        ssl_certificate_key /etc/nginx/ssl/default.key;
-
-        server_name auth.luna.local;
-
-        location / {
-            proxy_pass http://luna-auth:8080;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-
-        error_log /dev/stderr;
-        access_log /dev/stdout;
-    }
-
-  dashboard.luna.conf: |
-    server {
-        listen 80;
-        listen [::]:80;
-        listen 443 ssl;
-        listen [::]:443 ssl ipv6only=on;
-        ssl_certificate /etc/nginx/ssl/default.crt;
-        ssl_certificate_key /etc/nginx/ssl/default.key;
-
-        server_name dashboard.luna.local;
-
-        location / {
-            proxy_pass http://luna-dashboard:3000;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-
-        error_log /dev/stderr;
-        access_log /dev/stdout;
-    }
-
+  name: luna-nginx
+spec:
+  type: LoadBalancer
+  selector:
+    app: luna-nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: https
+      port: 443
+      targetPort: https
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: luna-nginx
-  namespace: auth
 spec:
   replicas: 1
   selector:
@@ -124,58 +31,33 @@ spec:
         app: luna-nginx
     spec:
       containers:
-      - name: nginx
-        image: nginx:alpine
-        ports:
-        - containerPort: 80
-          name: http
-        - containerPort: 443
-          name: https
-        volumeMounts:
-        - name: nginx-config
-          mountPath: /etc/nginx/nginx.conf
-          subPath: nginx.conf
-        - name: nginx-config
-          mountPath: /etc/nginx/sites-available/auth.luna.conf
-          subPath: auth.luna.conf
-        - name: nginx-config
-          mountPath: /etc/nginx/sites-available/dashboard.luna.conf
-          subPath: dashboard.luna.conf
-        - name: ssl-certs
-          mountPath: /etc/nginx/ssl
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 10
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: nginx
+          image: luna-nginx:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 80
+            - name: https
+              containerPort: 443
+          readinessProbe:
+            tcpSocket: {port: https}
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: {port: https}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: {cpu: 20m, memory: 16Mi}
+            limits: {memory: 128Mi}
+          volumeMounts:
+            - name: sites
+              mountPath: /etc/nginx/sites-available
+              readOnly: true
+            - name: ssl
+              mountPath: /etc/nginx/ssl
       volumes:
-      - name: nginx-config
-        configMap:
-          name: nginx-config
-      - name: ssl-certs
-        emptyDir: {}
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: luna-nginx
-  namespace: auth
-spec:
-  type: LoadBalancer
-  ports:
-  - port: 80
-    targetPort: 80
-    name: http
-  - port: 443
-    targetPort: 443
-    name: https
-  selector:
-    app: luna-nginx
+        - name: sites
+          configMap:
+            name: nginx-sites
+        - name: ssl
+          emptyDir: {}
