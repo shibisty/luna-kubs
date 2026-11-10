@@ -7,3 +7,6 @@
 [submodule "luna-keys"]
 	path = luna-keys
 	url = https://github.com/shibisty/luna-keys.git
+[submodule "luna-cli"]
+	path = luna-cli
+	url = https://github.com/shibisty/luna-cli.git

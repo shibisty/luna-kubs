@@ -328,6 +328,7 @@
   },
   "workspace": [
     "luna-auth",
+    "luna-cli",
     "luna-dashboard",
     "luna-keys"
   ]
