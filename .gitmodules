@@ -4,3 +4,6 @@
 [submodule "luna-dashboard"]
 	path = luna-dashboard
 	url = https://github.com/shibisty/luna-dashboard.git
+[submodule "luna-keys"]
+	path = luna-keys
+	url = https://github.com/shibisty/luna-keys.git

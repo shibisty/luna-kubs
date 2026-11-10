@@ -1,0 +1,334 @@
+{
+  "lockfileVersion": 1,
+  "packages": {
+    "fullstack": {
+      "version": "0.1.0",
+      "source": "github:shibisty/fullstack.go",
+      "commit": "4515b75ad4344decc0fb2d8fcd32fafe92fe5209",
+      "integrity": "h1:MBLhdC8cTVCn1zRvZH2tC2eUL7ThbvKHIxkyoTF7kzU="
+    },
+    "fullstack-orm": {
+      "version": "0.1.0",
+      "source": "github:shibisty/fullstack.go-orm",
+      "commit": "f4a633b9af085c9eb5c546576344b3916d20f62b",
+      "integrity": "h1:GUXbDHh8Ri9XgoY8sAbMd+fwh5U0Ksr/ZGgatVveaAE="
+    },
+    "fullstack-passport": {
+      "version": "0.1.0",
+      "source": "github:shibisty/fullstack.go-passport",
+      "commit": "b9dc8e4f177564af41e62d2676f0165411d95495",
+      "integrity": "h1:uuD7BVJDUA4JerkzYamE4dUqt065Hrm/S00Mc9klvUI="
+    },
+    "fullstack-testing": {
+      "version": "0.1.0",
+      "source": "github:shibisty/fullstack.go-testing",
+      "commit": "bf9d498ec5095233fa2ddb54723b0d4e45088441",
+      "integrity": "h1:aTOCe7NGLRZv5r6jwUsWCikuNCcICTaxkveIsylfdmQ="
+    },
+    "fullstack-validation": {
+      "version": "0.1.0",
+      "source": "github:shibisty/fullstack.go-validation",
+      "commit": "a732f8c82e3ae479de701f66cdb2141c9dbc3efd",
+      "integrity": "h1:N0nmfAl0+uJXNmjQ94vxcnQqk7Mh0rc8qy28oRFhTEI="
+    },
+    "github.com/creack/pty": {
+      "version": "v1.1.9",
+      "source": "go",
+      "integrity": "h1:uDmaGzcdjhF4i/plgjmEsriH11Y0o7RKapEf/LDaM3w=",
+      "goMod": "h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E="
+    },
+    "github.com/davecgh/go-spew": {
+      "version": "v1.1.1",
+      "source": "go",
+      "integrity": "h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=",
+      "goMod": "h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38="
+    },
+    "github.com/google/go-cmp": {
+      "version": "v0.6.0",
+      "source": "go",
+      "integrity": "h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=",
+      "goMod": "h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY="
+    },
+    "github.com/jackc/pgpassfile": {
+      "version": "v1.0.0",
+      "source": "go",
+      "integrity": "h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=",
+      "goMod": "h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=",
+      "dependencies": {
+        "github.com/stretchr/testify": "v1.3.0"
+      }
+    },
+    "github.com/jackc/pgservicefile": {
+      "version": "v0.0.0-20240606120523-5a60cdf6a761",
+      "source": "go",
+      "integrity": "h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=",
+      "goMod": "h1:5TJZWKEWniPve33vlWYSoGYefn3gLQRzjfDlhSJ9ZKM=",
+      "dependencies": {
+        "github.com/stretchr/testify": "v1.7.0"
+      }
+    },
+    "github.com/jackc/pgx/v5": {
+      "version": "v5.7.6",
+      "source": "go",
+      "integrity": "h1:rWQc5FwZSPX58r1OQmkuaNicxdmExaEz5A2DO2hUuTk=",
+      "goMod": "h1:aruU7o91Tc2q2cFp5h4uP3f6ztExVpyVv88Xl/8Vl8M=",
+      "dependencies": {
+        "github.com/davecgh/go-spew": "v1.1.1",
+        "github.com/jackc/pgpassfile": "v1.0.0",
+        "github.com/jackc/pgservicefile": "v0.0.0-20240606120523-5a60cdf6a761",
+        "github.com/jackc/puddle/v2": "v2.2.2",
+        "github.com/kr/pretty": "v0.3.0",
+        "github.com/pmezard/go-difflib": "v1.0.0",
+        "github.com/stretchr/testify": "v1.8.1",
+        "golang.org/x/crypto": "v0.37.0",
+        "golang.org/x/sync": "v0.13.0",
+        "golang.org/x/text": "v0.24.0",
+        "gopkg.in/check.v1": "v1.0.0-20201130134442-10cb98267c6c",
+        "gopkg.in/yaml.v3": "v3.0.1"
+      }
+    },
+    "github.com/jackc/puddle/v2": {
+      "version": "v2.2.2",
+      "source": "go",
+      "integrity": "h1:PR8nw+E/1w0GLuRFSmiioY6UooMp6KJv0/61nB7icHo=",
+      "goMod": "h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=",
+      "dependencies": {
+        "github.com/davecgh/go-spew": "v1.1.1",
+        "github.com/pmezard/go-difflib": "v1.0.0",
+        "github.com/stretchr/testify": "v1.8.1",
+        "golang.org/x/sync": "v0.1.0",
+        "gopkg.in/yaml.v3": "v3.0.1"
+      }
+    },
+    "github.com/kr/pretty": {
+      "version": "v0.3.0",
+      "source": "go",
+      "integrity": "h1:WgNl7dwNpEZ6jJ9k1snq4pZsg7DOEN8hP9Xw0Tsjwk0=",
+      "goMod": "h1:640gp4NfQd8pI5XOwp5fnNeVWj67G7CFk/SaSQn7NBk=",
+      "dependencies": {
+        "github.com/kr/text": "v0.2.0",
+        "github.com/rogpeppe/go-internal": "v1.6.1"
+      }
+    },
+    "github.com/kr/text": {
+      "version": "v0.2.0",
+      "source": "go",
+      "integrity": "h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=",
+      "goMod": "h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=",
+      "dependencies": {
+        "github.com/creack/pty": "v1.1.9"
+      }
+    },
+    "github.com/pmezard/go-difflib": {
+      "version": "v1.0.0",
+      "source": "go",
+      "integrity": "h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=",
+      "goMod": "h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4="
+    },
+    "github.com/rogpeppe/go-internal": {
+      "version": "v1.6.1",
+      "source": "go",
+      "integrity": "h1:/FiVV8dS/e+YqF2JvO3yXRFbBLTIuSDkuC7aBOAvL+k=",
+      "goMod": "h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=",
+      "dependencies": {
+        "gopkg.in/errgo.v2": "v2.1.0"
+      }
+    },
+    "github.com/stretchr/objx": {
+      "version": "v0.5.0",
+      "source": "go",
+      "integrity": "h1:1zr/of2m5FGMsad5YfcqgdqdWrIhu+EBEJRhR1U7z/c=",
+      "goMod": "h1:Yh+to48EsGEfYuaHDzXPcE3xhTkx73EhmCGUpEOglKo=",
+      "dependencies": {
+        "github.com/stretchr/testify": "v1.8.0"
+      }
+    },
+    "github.com/stretchr/testify": {
+      "version": "v1.8.1",
+      "source": "go",
+      "integrity": "h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=",
+      "goMod": "h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=",
+      "dependencies": {
+        "github.com/davecgh/go-spew": "v1.1.1",
+        "github.com/pmezard/go-difflib": "v1.0.0",
+        "github.com/stretchr/objx": "v0.5.0",
+        "gopkg.in/yaml.v3": "v3.0.1"
+      }
+    },
+    "github.com/yuin/goldmark": {
+      "version": "v1.4.13",
+      "source": "go",
+      "integrity": "h1:fVcFKWvrslecOb/tg+Cc05dkeYx540o0FuFt3nUVDoE=",
+      "goMod": "h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY="
+    },
+    "golang.org/x/crypto": {
+      "version": "v0.37.0",
+      "source": "go",
+      "integrity": "h1:kJNSjF/Xp7kU0iB2Z+9viTPMW4EqqsrywMXLJOOsXSE=",
+      "goMod": "h1:vg+k43peMZ0pUMhYmVAWysMK35e6ioLh3wB8ZCAfbVc=",
+      "dependencies": {
+        "golang.org/x/net": "v0.21.0",
+        "golang.org/x/sys": "v0.32.0",
+        "golang.org/x/term": "v0.31.0",
+        "golang.org/x/text": "v0.24.0"
+      }
+    },
+    "golang.org/x/mod": {
+      "version": "v0.17.0",
+      "source": "go",
+      "integrity": "h1:zY54UmvipHiNd+pm+m0x9KhZ9hl1/7QNMyxXbc6ICqA=",
+      "goMod": "h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=",
+      "dependencies": {
+        "golang.org/x/tools": "v0.13.0"
+      }
+    },
+    "golang.org/x/net": {
+      "version": "v0.25.0",
+      "source": "go",
+      "integrity": "h1:d/OCCoBEUq33pjydKrGQhw7IlUPI2Oylr+8qLx49kac=",
+      "goMod": "h1:JkAGAh7GEvH74S6FOH42FLoXpXbE/aqXSrIQjXgsiwM=",
+      "dependencies": {
+        "golang.org/x/crypto": "v0.23.0",
+        "golang.org/x/sys": "v0.20.0",
+        "golang.org/x/term": "v0.20.0",
+        "golang.org/x/text": "v0.15.0"
+      }
+    },
+    "golang.org/x/sync": {
+      "version": "v0.13.0",
+      "source": "go",
+      "integrity": "h1:AauUjRAJ9OSnvULf/ARrrVywoJDy0YS2AwQ98I37610=",
+      "goMod": "h1:1dzgHSNfp02xaA81J2MS99Qcpr2w7fw1gpm99rleRqA="
+    },
+    "golang.org/x/sys": {
+      "version": "v0.32.0",
+      "source": "go",
+      "integrity": "h1:s77OFDvIQeibCmezSnk/q6iAfkdiQaJi4VzroCFrN20=",
+      "goMod": "h1:BJP2sWEmIv4KK5OTEluFJCKSidICx8ciO85XgH3Ak8k="
+    },
+    "golang.org/x/telemetry": {
+      "version": "v0.0.0-20240228155512-f48c80bd79b2",
+      "source": "go",
+      "integrity": "h1:IRJeR9r1pYWsHKTRe/IInb7lYvbBVIqOgsX/u0mbOWY=",
+      "goMod": "h1:TeRTkGYfJXctD9OcfyVLyj2J3IxLnKwHJR8f4D8a3YE=",
+      "dependencies": {
+        "golang.org/x/mod": "v0.15.0",
+        "golang.org/x/sync": "v0.6.0",
+        "golang.org/x/sys": "v0.17.0"
+      }
+    },
+    "golang.org/x/term": {
+      "version": "v0.31.0",
+      "source": "go",
+      "integrity": "h1:erwDkOK1Msy6offm1mOgvspSkslFnIGsFnxOKoufg3o=",
+      "goMod": "h1:R4BeIy7D95HzImkxGkTW1UQTtP54tio2RyHz7PwK0aw=",
+      "dependencies": {
+        "golang.org/x/sys": "v0.32.0"
+      }
+    },
+    "golang.org/x/text": {
+      "version": "v0.24.0",
+      "source": "go",
+      "integrity": "h1:dd5Bzh4yt5KYA8f9CJHCP4FB4D51c2c6JvN37xJJkJ0=",
+      "goMod": "h1:L8rBsPeo2pSS+xqN0d5u2ikmjtmoJbDBT1b7nHvFCdU=",
+      "dependencies": {
+        "golang.org/x/mod": "v0.17.0",
+        "golang.org/x/sync": "v0.13.0",
+        "golang.org/x/tools": "v0.21.1-0.20240508182429-e35e4ccd0d2d"
+      }
+    },
+    "golang.org/x/tools": {
+      "version": "v0.21.1-0.20240508182429-e35e4ccd0d2d",
+      "source": "go",
+      "integrity": "h1:vU5i/LfpvrRCpgM/VPfJLg5KjxD3E+hfT1SH+d9zLwg=",
+      "goMod": "h1:aiJjzUbINMkxbQROHiO6hDPo2LHcIPhhQsa9DLh0yGk=",
+      "dependencies": {
+        "github.com/google/go-cmp": "v0.6.0",
+        "github.com/yuin/goldmark": "v1.4.13",
+        "golang.org/x/mod": "v0.17.0",
+        "golang.org/x/net": "v0.25.0",
+        "golang.org/x/sync": "v0.7.0",
+        "golang.org/x/sys": "v0.20.0",
+        "golang.org/x/telemetry": "v0.0.0-20240228155512-f48c80bd79b2"
+      }
+    },
+    "gopkg.in/check.v1": {
+      "version": "v1.0.0-20201130134442-10cb98267c6c",
+      "source": "go",
+      "integrity": "h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=",
+      "goMod": "h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=",
+      "dependencies": {
+        "github.com/kr/pretty": "v0.2.1"
+      }
+    },
+    "gopkg.in/errgo.v2": {
+      "version": "v2.1.0",
+      "source": "go",
+      "integrity": "h1:0vLT13EuvQ0hNvakwLuFZ/jYrLp5F3kcWHXdRggjCE8=",
+      "goMod": "h1:hNsd1EY+bozCKY1Ytp96fpM3vjJbqLJn88ws8XvfDNI=",
+      "dependencies": {
+        "github.com/kr/pretty": "v0.1.0",
+        "gopkg.in/check.v1": "v1.0.0-20180628173108-788fd7840127"
+      }
+    },
+    "gopkg.in/yaml.v3": {
+      "version": "v3.0.1",
+      "source": "go",
+      "integrity": "h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=",
+      "goMod": "h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=",
+      "dependencies": {
+        "gopkg.in/check.v1": "v0.0.0-20161208181325-20d25e280405"
+      }
+    },
+    "migration": {
+      "version": "0.1.0",
+      "source": "github:shibisty/migration.go",
+      "commit": "006357491a36069dda2401433c6e828e890a275f",
+      "integrity": "h1:le/np9FSFpq0mkyMZ9ExTbc2P5QkfsBTTDrhB5S+zuI="
+    },
+    "migration-orm": {
+      "version": "0.1.0",
+      "source": "github:shibisty/migration.go-orm-driver",
+      "commit": "d21657b406ead65bbd11e09fc5d18c35e45ac6b1",
+      "integrity": "h1:SlJ4psba39n9wGlhn2oGnVdIhW5GJdJbrwSAhSJCpSo="
+    },
+    "orm": {
+      "version": "0.2.1",
+      "source": "github:shibisty/orm.go",
+      "commit": "ffe5b7d9265fde54b977f0632092280833e02796",
+      "integrity": "h1:Jk8HZiRA/tQhaTFjXSVkTx4w0PCTKNmO5kzxWvG1qEM="
+    },
+    "orm-postgres": {
+      "version": "0.1.0",
+      "source": "github:shibisty/orm.go-postgres-driver",
+      "commit": "177084f317e3b3ff7a64f3fa1ac8491c2c358199",
+      "integrity": "h1:veVi3310UM1+YzNFV1u5+9AHTyU9WYVEqdAP1gI9q3Y=",
+      "dependencies": {
+        "github.com/jackc/pgx/v5": "~5.7.1"
+      }
+    },
+    "passport": {
+      "version": "0.2.0",
+      "source": "github:shibisty/passport.go",
+      "commit": "3ec0ab4f04f753d2a23ee7187d520077a4e2c0bf",
+      "integrity": "h1:sX1KF/oMkZEHKpxZMB2GpbNtA9xgKAt4iHzgNGwT2YA="
+    },
+    "passport-local": {
+      "version": "0.1.1",
+      "source": "github:shibisty/passport.go-local-strategy",
+      "commit": "107ae548f20e41a65285468a741046c5fe3e8e1a",
+      "integrity": "h1:uELJknQQSmFAgnL8fOKF7NNu+w5+5mnAN3/JxuETV+k="
+    },
+    "passport-session-sql": {
+      "version": "0.1.1",
+      "source": "github:shibisty/passport.go-sql-session",
+      "commit": "6e5a7903548cdb3464f084b986d0895dc70ca4c1",
+      "integrity": "h1:JKTcXTxncCpN+HrJnOlkj55uP5CFY0hIYxw2rw0Q8v8="
+    }
+  },
+  "workspace": [
+    "luna-auth",
+    "luna-dashboard",
+    "luna-keys"
+  ]
+}
