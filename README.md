@@ -1,110 +1,121 @@
 # Luna
 
-This repository contains the authentication service, dashboard application, and infrastructure configuration for running them locally with Docker Compose and in Kubernetes.
+A backend platform for client applications. A developer registers an
+application in the dashboard and gets API keys with scopes; the
+application then uses Luna's services with those keys.
 
-## Project structure
+| Service | What it does |
+| --- | --- |
+| [luna-dashboard](luna-dashboard) | The developer console: accounts, applications, API keys. The only key authority; luna-auth asks it about every key (internal API, cached). |
+| [luna-auth](luna-auth) | Registration and sign-in of the application's own end users (username or email + password), JWTs per application, rotating refresh tokens, password reset, user administration. |
+| luna-pages | Text pages behind the same keys. Planned. |
 
-- `luna-auth/` — Go-based authentication service
-- `luna-dashboard/` — Nuxt dashboard application
-- `postgres/` — PostgreSQL container configuration and initialization scripts
-- `k8s/` — Kubernetes manifests for the services and PostgreSQL
-- `docker-compose.yml` — local multi-container environment
+Shared code and tools:
 
-## Components
+| Package | |
+| --- | --- |
+| [luna-keys](luna-keys) | Key format, scopes, the introspection client and handler, `RequireKey` and CORS middleware. Standard library only. |
+| [luna-cli](luna-cli) | `key:generate` for secrets, `smoke` for an end-to-end check of the running stack. |
 
-### luna-auth
+Everything is Go on [fullstack.go](https://github.com/shibisty/fullstack.go)
+and managed by [gtr](https://github.com/shibisty/gtr-manager) as one
+workspace: `gtr.json` lists the members, `gtr.lock` pins every dependency,
+and each member's `go.mod` is generated (git-ignored).
 
-The auth service exposes REST endpoints for registration, login, and JWT verification. It connects to PostgreSQL and runs on port `8080` inside the container.
+## Keys and scopes
 
-### postgres
+| Scope | Allows |
+| --- | --- |
+| `auth:login` | register, sign in, refresh, sign out, `/v1/me`, password reset |
+| `auth:users.read` | list and read the application's users |
+| `auth:users.write` | change and delete them |
+| `pages:read`, `pages:write` | luna-pages (planned) |
 
-A dedicated PostgreSQL container is used for the auth and dashboard databases and includes TLS setup and initialization scripts.
+Keys go in the `X-API-Key` header. A server key (`sk_live_…`) is for
+backends and is refused when a browser sends it; a browser key (`pk_live_…`)
+works only from the application's allowed origins and only with
+`auth:login`. The dashboard stores only a key's SHA-256.
 
-### luna-dashboard
+## Layout
 
-The dashboard service is a Nuxt-based application that uses Prisma and a separate database connection.
-
-## Run locally with Docker Compose
-
-From the repository root:
-
-```bash
-docker compose up --build
+```
+luna-dashboard/  luna-auth/  luna-keys/  luna-cli/   the workspace (submodules)
+docker/app.Dockerfile      one image recipe for every service
+docker-compose.yml         the local stack
+nginx/                     the edge: TLS, the two hosts
+postgres/                  PostgreSQL 18 with TLS and the service databases
+k8s/                       the same stack on Kubernetes (kustomize)
+mail/  roundcube/  certbot/   local mail, webmail, certificates
 ```
 
-Services:
+## Run it
 
-- `luna-auth`: http://localhost:8080
-- `luna-dashboard`: http://localhost:3000
-- `postgres`: localhost:5432
+You need Docker, Go 1.26 and gtr. Point the hosts at your machine
+(`C:\Windows\System32\drivers\etc\hosts` or `/etc/hosts`):
 
-Stop the stack:
-
-```bash
-docker compose down
+```
+127.0.0.1 dashboard.luna.local auth.luna.local mail.luna.local
 ```
 
-Remove volumes as well:
+### The whole stack in Docker
 
 ```bash
-docker compose down -v
+git clone --recurse-submodules https://github.com/shibisty/luna-kubs.git luna
+cd luna
+cp .env.example .env
+gtr install                                  # the workspace, for luna-cli
+cd luna-cli
+go run . key:generate --env ../.env --name AUTH_JWT_SECRET
+go run . key:generate --env ../.env --name LUNA_SERVICE_TOKEN
+cd ..
+# set GITHUB_TOKEN in .env: gtr fetches packages through the GitHub API while building
+docker compose build
+docker compose up -d
 ```
 
-## Run in Kubernetes
+- https://dashboard.luna.local — the console (sign up, create an application and a key)
+- https://auth.luna.local/docs — luna-auth's API (Swagger UI); `/openapi.yaml` is the document
 
-Start Minikube:
+The certificate is self-signed. Migrations run before each service starts
+(`luna-*-migrate`). Check the stack end to end:
 
 ```bash
-minikube start
+cd luna-cli && go run . smoke --insecure
 ```
 
-Build the images for Minikube:
+With `APP_ENV=local` (the default in `.env.example`) password reset links
+go to luna-auth's log (`docker compose logs luna-auth`) instead of email.
+
+### A service from source
+
+Postgres from compose listens on `127.0.0.1:5433` (TLS, `sslmode=require`).
 
 ```bash
-minikube image build -t luna-auth:latest ./luna-auth
-minikube image build -t luna-dashboard:latest ./luna-dashboard
+docker compose up -d postgres
+gtr install
+cd luna-dashboard && cp .env.example .env    # then the secrets, see the file
+gtr dev                                      # rebuilds and restarts on change
 ```
 
-Apply the manifests:
+The same for luna-auth, whose `LUNA_DASHBOARD_TOKEN` must be one of the
+dashboard's `LUNA_SERVICE_TOKENS`. Each service's README has the rest.
+
+### Kubernetes
+
+See [k8s/README.md](k8s/README.md): the compose images loaded into minikube,
+`kubectl apply -k k8s`.
+
+## Tests
 
 ```bash
-kubectl apply -k k8s
+gtr run -r test                 # every member
 ```
 
-Check the deployment:
+The database tests run when `TEST_DATABASE_DSN` points at an empty test
+database, one per service (they are skipped otherwise).
 
-```bash
-kubectl get pods -n luna
-kubectl get svc -n luna
-```
+API collections for Postman (and newman) are in each service's `docs/postman/`.
 
-Port-forward the services:
+## License
 
-```bash
-kubectl port-forward svc/luna-auth 8080:8080 -n luna
-kubectl port-forward svc/luna-dashboard 3000:3000 -n luna
-```
-
-## Useful environment variables
-
-### luna-auth
-
-- `SECRET_KEY`
-- `DB_HOST`
-- `DB_PORT`
-- `DB_NAME`
-- `DB_USER`
-- `DB_PASSWORD`
-- `DB_SSLMODE`
-- `DB_SSLROOTCERT`
-
-### luna-dashboard
-
-- `DATABASE_URL`
-- `PORT`
-
-## Notes
-
-- The Docker Compose configuration uses a shared network for the services.
-- PostgreSQL initialization scripts create the required roles and databases on first startup.
-- For production deployments, replace default secrets and passwords with secure values.
+MIT

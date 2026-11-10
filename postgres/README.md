@@ -1,14 +1,15 @@
-Для PostgreSQL с TLS:
+# postgres
 
-1. Сборка образа:
-   docker build -t luna-postgres ./postgres
+The `luna-postgres:18` image: PostgreSQL 18 (alpine) that accepts network
+connections over TLS only (`pg_hba.conf`: `hostssl`, everything else rejected).
 
-2. Запуск:
-   docker run --rm -p 5432:5432 luna-postgres
+- `generate-tls.sh` runs before the server and creates a CA and a server
+  certificate in `/var/lib/postgresql/tls` when they are missing (a volume in
+  compose, an emptyDir in Kubernetes). Clients use `sslmode=require`.
+- `docker-entrypoint-initdb.d/10-luna.sh` runs once, when the data volume is
+  created: a role and a database per service (`auth_service` / `auth_db`,
+  `dashboard_user` / `dashboard`), passwords from `AUTH_DB_PASSWORD` and
+  `DASHBOARD_DB_PASSWORD`.
 
-3. При первом старте будут автоматически сгенерированы:
-   - /var/lib/postgresql/tls/server.crt
-   - /var/lib/postgresql/tls/server.key
-   - /var/lib/postgresql/tls/ca.crt
-
-4. Для Kubernetes нужно положить эти файлы в Secret `postgres-tls`.
+A new service gets a line in `10-luna.sh` and its own DSN; on an existing
+volume create its role and database by hand (or recreate the volume).

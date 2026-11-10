@@ -1,6 +1,3 @@
+# Only Luna's own init scripts are tracked.
 *.sh
-!init_gitlab_db.sh
-!init_jupyterhub_db.sh
-!init_sonarqube_db.sh
-!init_confluence_db.sh
 !10-luna.sh
