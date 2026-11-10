@@ -10,7 +10,8 @@
     "workspaces": [
         "luna-keys",
         "luna-dashboard",
-        "luna-auth"
+        "luna-auth",
+        "luna-cli"
     ],
     "scripts": {
         "test": "gtr run -r test",
