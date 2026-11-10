@@ -7,6 +7,11 @@ set -e
 
 export MAIL_DOMAIN
 
+# TLS files: certbot's by default (compose), cert-manager's Secret in Kubernetes.
+: "${MAIL_TLS_CERT:=/etc/letsencrypt/live/${MAIL_DOMAIN}/fullchain.pem}"
+: "${MAIL_TLS_KEY:=/etc/letsencrypt/live/${MAIL_DOMAIN}/privkey.pem}"
+export MAIL_TLS_CERT MAIL_TLS_KEY
+
 # --- Сертификаты ---
 # main.cf/dovecot.conf ссылаются на /etc/letsencrypt/live/$MAIL_DOMAIN/*.
 # При самом первом запуске (до того как certbot вообще успел отработать)
@@ -25,8 +30,8 @@ CERT_DIR="/etc/letsencrypt/live/${MAIL_DOMAIN}"
 # fi
 
 # --- Подстановка домена в конфиги ---
-envsubst '${MAIL_DOMAIN}' < /etc/postfix/main.cf.template > /etc/postfix/main.cf
-envsubst '${MAIL_DOMAIN}' < /etc/dovecot/dovecot.conf.template > /etc/dovecot/dovecot.conf
+envsubst '${MAIL_DOMAIN} ${MAIL_TLS_CERT} ${MAIL_TLS_KEY}' < /etc/postfix/main.cf.template > /etc/postfix/main.cf
+envsubst '${MAIL_DOMAIN} ${MAIL_TLS_CERT} ${MAIL_TLS_KEY}' < /etc/dovecot/dovecot.conf.template > /etc/dovecot/dovecot.conf
 
 # --- Почтовый пользователь (dovecot passwd-file) ---
 mkdir -p "/var/mail/vhosts/${MAIL_DOMAIN}/${MAIL_USERNAME}"

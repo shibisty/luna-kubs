@@ -1,0 +1,60 @@
+# Let's Encrypt through cert-manager (installed separately, see README.md).
+# DNS-01 with DigitalOcean DNS: cert-manager writes the challenge TXT records
+# with the token in Secret digitalocean-dns, so no HTTP path is involved and
+# the mail host gets its certificate the same way.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@example.com # settings.env LETSENCRYPT_EMAIL
+    privateKeySecretRef:
+      name: letsencrypt-account
+    solvers:
+      - dns01:
+          digitalocean:
+            tokenSecretRef:
+              name: digitalocean-dns
+              key: access-token
+---
+# Let's Encrypt's staging server, for trying the setup without its rate
+# limits: point the Certificate's issuerRef here first if in doubt.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: admin@example.com # settings.env LETSENCRYPT_EMAIL
+    privateKeySecretRef:
+      name: letsencrypt-staging-account
+    solvers:
+      - dns01:
+          digitalocean:
+            tokenSecretRef:
+              name: digitalocean-dns
+              key: access-token
+---
+# One certificate for every public host: nginx (web) and postfix/dovecot
+# (mail) mount the same Secret. cert-manager renews it 30 days before expiry.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: luna-tls
+spec:
+  secretName: luna-tls
+  issuerRef:
+    kind: Issuer
+    name: letsencrypt
+  dnsNames: # settings.env: AUTH_HOST, DASHBOARD_HOST, WEBMAIL_HOST, MAIL_HOST
+    - auth.example.com
+    - dashboard.example.com
+    - webmail.example.com
+    - mail.example.com
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always

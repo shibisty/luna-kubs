@@ -1,0 +1,149 @@
+# Luna on DigitalOcean Kubernetes. Once (see README.md): cert-manager, the
+# registry integration, settings.env, secrets.env, digitalocean.env. Then:
+#
+#   kubectl apply -k k8s/do
+#
+# Images come from your DigitalOcean Container Registry: set the registry
+# name and the tags below (the same tag you pushed).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: luna
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: luna
+resources:
+  - ../base
+  - cert-manager.yaml
+  - nginx.yaml
+  - mail.yaml
+  - roundcube.yaml
+
+images:
+  - name: luna-dashboard
+    newName: registry.digitalocean.com/luna-registry/luna-dashboard
+    newTag: "0.1.0"
+  - name: luna-auth
+    newName: registry.digitalocean.com/luna-registry/luna-auth
+    newTag: "0.1.0"
+  - name: luna-nginx
+    newName: registry.digitalocean.com/luna-registry/luna-nginx
+    newTag: "0.1.0"
+  - name: luna-postgres
+    newName: registry.digitalocean.com/luna-registry/luna-postgres
+    newTag: "18"
+  - name: luna-mail
+    newName: registry.digitalocean.com/luna-registry/luna-mail
+    newTag: "0.1.0"
+
+configMapGenerator:
+  - name: luna-config
+    behavior: merge
+    literals:
+      - APP_ENV=production
+      - API_DOCS=true
+  # The public names (settings.env): nginx renders its sites from them, the
+  # replacements below put them into the certificate and the services' URLs.
+  - name: luna-settings
+    envs:
+      - settings.env
+  - name: nginx-templates
+    files:
+      - nginx/redirect.conf.template
+      - nginx/auth.conf.template
+      - nginx/dashboard.conf.template
+      - nginx/webmail.conf.template
+  - name: roundcube-config
+    files:
+      - roundcube/config.inc.php
+
+secretGenerator:
+  - name: luna-secrets
+    envs:
+      - secrets.env
+  # Referenced by the Issuers by name (kustomize does not rewrite
+  # cert-manager's references), so no hash suffix.
+  - name: digitalocean-dns
+    envs:
+      - digitalocean.env
+    options:
+      disableNameSuffixHash: true
+
+patches:
+  # Pull from the registry: the secret the DigitalOcean registry integration
+  # creates in every namespace is named after the registry.
+  - target: {kind: Deployment}
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value: [{name: luna-registry}]
+  - target: {kind: StatefulSet}
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value: [{name: luna-registry}]
+  # roundcube comes from Docker Hub: no registry secret needed, but harmless.
+  # Production storage and size.
+  - target: {kind: StatefulSet, name: postgres}
+    patch: |-
+      - op: replace
+        path: /spec/volumeClaimTemplates/0/spec/resources/requests/storage
+        value: 10Gi
+  # luna-auth sends password reset emails through luna-mail's submission port.
+  - target: {kind: Deployment, name: luna-auth}
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: luna-auth
+      spec:
+        template:
+          spec:
+            containers:
+              - name: luna-auth
+                env:
+                  - name: MAIL_HOST
+                    valueFrom:
+                      configMapKeyRef: {name: luna-settings, key: MAIL_HOST}
+                  - name: MAIL_PORT
+                    value: "587"
+                  - name: MAIL_USERNAME
+                    valueFrom:
+                      configMapKeyRef: {name: luna-settings, key: AUTH_MAIL_USERNAME}
+                  - name: MAIL_PASSWORD
+                    valueFrom:
+                      secretKeyRef: {name: luna-secrets, key: MAIL_PASSWORD}
+                  - name: MAIL_FROM
+                    valueFrom:
+                      configMapKeyRef: {name: luna-settings, key: AUTH_MAIL_FROM}
+
+replacements:
+  - source: {kind: ConfigMap, name: luna-settings, fieldPath: data.LETSENCRYPT_EMAIL}
+    targets:
+      - select: {kind: Issuer}
+        fieldPaths: [spec.acme.email]
+  - source: {kind: ConfigMap, name: luna-settings, fieldPath: data.AUTH_HOST}
+    targets:
+      - select: {kind: Certificate, name: luna-tls}
+        fieldPaths: [spec.dnsNames.0]
+      - select: {kind: Deployment, name: luna-auth}
+        fieldPaths:
+          - spec.template.spec.containers.[name=luna-auth].env.[name=APP_URL].value
+          - spec.template.spec.initContainers.[name=migrate].env.[name=APP_URL].value
+        options: {delimiter: "//", index: 1}
+  - source: {kind: ConfigMap, name: luna-settings, fieldPath: data.DASHBOARD_HOST}
+    targets:
+      - select: {kind: Certificate, name: luna-tls}
+        fieldPaths: [spec.dnsNames.1]
+      - select: {kind: Deployment, name: luna-dashboard}
+        fieldPaths:
+          - spec.template.spec.containers.[name=luna-dashboard].env.[name=APP_URL].value
+          - spec.template.spec.initContainers.[name=migrate].env.[name=APP_URL].value
+        options: {delimiter: "//", index: 1}
+  - source: {kind: ConfigMap, name: luna-settings, fieldPath: data.WEBMAIL_HOST}
+    targets:
+      - select: {kind: Certificate, name: luna-tls}
+        fieldPaths: [spec.dnsNames.2]
+  - source: {kind: ConfigMap, name: luna-settings, fieldPath: data.MAIL_HOST}
+    targets:
+      - select: {kind: Certificate, name: luna-tls}
+        fieldPaths: [spec.dnsNames.3]

@@ -28,5 +28,5 @@ service auth {
 }
 
 ssl = required
-ssl_cert = </etc/letsencrypt/live/${MAIL_DOMAIN}/cert.crt
-ssl_key  = </etc/letsencrypt/live/${MAIL_DOMAIN}/cert.key
+ssl_cert = <${MAIL_TLS_CERT}
+ssl_key  = <${MAIL_TLS_KEY}

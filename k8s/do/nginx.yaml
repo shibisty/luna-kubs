@@ -1,0 +1,92 @@
+# The edge: a DigitalOcean load balancer (TCP, PROXY protocol, so nginx and
+# the services see the client's address) in front of luna-nginx, which
+# terminates TLS with the certificate cert-manager keeps in Secret luna-tls.
+apiVersion: v1
+kind: Service
+metadata:
+  name: luna-nginx
+  annotations:
+    service.beta.kubernetes.io/do-loadbalancer-name: luna-web
+    service.beta.kubernetes.io/do-loadbalancer-enable-proxy-protocol: "true"
+    # Once the hosts point at the load balancer's address, uncomment and set
+    # one of them: pods that call a public host then go through the load
+    # balancer (and get the PROXY header) instead of straight to nginx.
+    # service.beta.kubernetes.io/do-loadbalancer-hostname: auth.example.com
+spec:
+  type: LoadBalancer
+  selector:
+    app: luna-nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: https
+      port: 443
+      targetPort: https
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: luna-nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: luna-nginx
+  template:
+    metadata:
+      labels:
+        app: luna-nginx
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {app: luna-nginx}
+      containers:
+        - name: nginx
+          image: luna-nginx:local
+          imagePullPolicy: IfNotPresent
+          # startup.sh renders /etc/nginx/templates/*.conf.template with these.
+          envFrom:
+            - configMapRef: {name: luna-settings}
+          ports:
+            - name: http
+              containerPort: 80
+            - name: https
+              containerPort: 443
+          readinessProbe:
+            tcpSocket: {port: https}
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: {port: https}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: {cpu: 20m, memory: 24Mi}
+            limits: {memory: 128Mi}
+          volumeMounts:
+            - name: templates
+              mountPath: /etc/nginx/templates
+              readOnly: true
+            - name: sites
+              mountPath: /etc/nginx/sites-available
+            - name: tls
+              mountPath: /etc/nginx/tls
+              readOnly: true
+            - name: ssl
+              mountPath: /etc/nginx/ssl
+      volumes:
+        - name: templates
+          configMap:
+            name: nginx-templates
+        - name: sites
+          emptyDir: {}
+        # The pod waits for the first certificate (a few minutes after the
+        # first apply); renewals arrive in place, startup.sh reloads nginx.
+        - name: tls
+          secret:
+            secretName: luna-tls
+        - name: ssl
+          emptyDir: {}

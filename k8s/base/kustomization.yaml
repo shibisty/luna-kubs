@@ -1,0 +1,22 @@
+# What every Luna cluster runs: postgres and the two services, in namespace
+# luna. Not applied by itself: an overlay adds the edge (nginx), the
+# secrets and the environment. local/ is minikube, do/ is DigitalOcean.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: luna
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: luna
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - dashboard.yaml
+  - auth.yaml
+  - networkpolicy.yaml
+configMapGenerator:
+  - name: luna-config
+    literals:
+      - HTTP_TRUSTED_PROXIES=private
+      - DB_DRIVER=postgres
+      - LUNA_DASHBOARD_URL=http://luna-dashboard:8080
+      - LUNA_AUTH_URL=http://luna-auth:8080

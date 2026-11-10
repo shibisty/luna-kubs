@@ -12,10 +12,16 @@ mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
 inet_protocols = ipv4
 inet_interfaces = all
 
+# Relaying is granted to authenticated users only, never by address: behind a
+# load balancer or in a pod network every client can look "local".
+mynetworks = 127.0.0.0/8
+
 # TLS для клиентских соединений (submission/587) — сертификаты те же,
 # что и у nginx (Let's Encrypt), монтируются как volume.
-smtpd_tls_cert_file = /etc/letsencrypt/live/${MAIL_DOMAIN}/cert.crt
-smtpd_tls_key_file  = /etc/letsencrypt/live/${MAIL_DOMAIN}/cert.key
+# MAIL_TLS_CERT / MAIL_TLS_KEY (entrypoint.sh): certbot's files in compose,
+# cert-manager's Secret in Kubernetes.
+smtpd_tls_cert_file = ${MAIL_TLS_CERT}
+smtpd_tls_key_file  = ${MAIL_TLS_KEY}
 smtpd_tls_security_level = may
 smtpd_use_tls = yes
 

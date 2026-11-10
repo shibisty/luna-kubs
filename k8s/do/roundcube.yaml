@@ -1,0 +1,80 @@
+# Roundcube webmail at WEBMAIL_HOST (through luna-nginx). It talks to
+# luna-mail inside the cluster; the certificate there names the public
+# mail host, so roundcube/config.inc.php does not check it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: roundcube
+spec:
+  selector:
+    app: roundcube
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roundcube
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # one volume (sqlite)
+  selector:
+    matchLabels:
+      app: roundcube
+  template:
+    metadata:
+      labels:
+        app: roundcube
+    spec:
+      containers:
+        - name: roundcube
+          image: roundcube/roundcubemail:latest
+          env:
+            - name: ROUNDCUBEMAIL_DEFAULT_HOST
+              value: ssl://luna-mail
+            - name: ROUNDCUBEMAIL_DEFAULT_PORT
+              value: "993"
+            - name: ROUNDCUBEMAIL_SMTP_SERVER
+              value: tls://luna-mail
+            - name: ROUNDCUBEMAIL_SMTP_PORT
+              value: "587"
+            - name: ROUNDCUBEMAIL_DB_TYPE
+              value: sqlite
+            - name: ROUNDCUBEMAIL_UPLOAD_MAX_FILESIZE
+              value: 25M
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            tcpSocket: {port: http}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 20m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          volumeMounts:
+            - name: data
+              mountPath: /var/roundcube
+            - name: config
+              mountPath: /var/www/html/config/config.inc.php
+              subPath: config.inc.php
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: roundcube
+        - name: config
+          configMap:
+            name: roundcube-config
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: roundcube
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi

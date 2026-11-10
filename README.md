@@ -46,7 +46,7 @@ docker/app.Dockerfile      one image recipe for every service
 docker-compose.yml         the local stack
 nginx/                     the edge: TLS, the two hosts
 postgres/                  PostgreSQL 18 with TLS and the service databases
-k8s/                       the same stack on Kubernetes (kustomize)
+k8s/                       the same stack on Kubernetes: base/, local/ (minikube), do/ (DigitalOcean)
 mail/  roundcube/  certbot/   local mail, webmail, certificates
 ```
 
@@ -104,8 +104,11 @@ dashboard's `LUNA_SERVICE_TOKENS`. Each service's README has the rest.
 
 ### Kubernetes
 
-See [k8s/README.md](k8s/README.md): the compose images loaded into minikube,
-`kubectl apply -k k8s`.
+[k8s/README.md](k8s/README.md): `k8s/local` runs the compose images on
+minikube; `k8s/do` deploys to DigitalOcean Kubernetes with images from its
+Container Registry, Let's Encrypt certificates through cert-manager (DNS-01),
+load balancers for the web and for mail, and webmail. DigitalOcean blocks
+outgoing SMTP from its machines until its support lifts the block.
 
 ## Tests
 

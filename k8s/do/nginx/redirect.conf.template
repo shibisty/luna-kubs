@@ -1,0 +1,13 @@
+# Plain HTTP on every host: to HTTPS. Rendered by startup.sh (envsubst of
+# ${AUTH_HOST} ${DASHBOARD_HOST} ${WEBMAIL_HOST} only; nginx's own $variables stay).
+server {
+    listen 80 proxy_protocol default_server;
+    server_name _;
+    return 301 https://$host$request_uri;
+}
+
+# A request for no known host gets no answer.
+server {
+    listen 443 ssl proxy_protocol default_server;
+    ssl_reject_handshake on;
+}

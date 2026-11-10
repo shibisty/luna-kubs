@@ -1,0 +1,102 @@
+# postfix + dovecot (mail/, image luna-mail): SMTP on 25, submission on 587,
+# IMAPS on 993, behind their own DigitalOcean load balancer. TLS from the
+# same cert-manager Secret as the web; the image reloads postfix and dovecot
+# every 12 hours to pick up a renewal.
+#
+# DigitalOcean blocks outgoing SMTP (25, 465, 587) on its Droplets, the
+# cluster's nodes included: until its support lifts the block for the
+# account, mail can arrive here but not leave (see README.md).
+apiVersion: v1
+kind: Service
+metadata:
+  name: luna-mail
+  annotations:
+    service.beta.kubernetes.io/do-loadbalancer-name: luna-mail
+spec:
+  type: LoadBalancer
+  # Straight to the node that runs the pod. The load balancer does not pass
+  # the client's address on (that would take PROXY protocol, which this
+  # postfix does not speak), so relaying is never granted by address:
+  # mynetworks is 127.0.0.0/8, senders authenticate on 587.
+  externalTrafficPolicy: Local
+  selector:
+    app: luna-mail
+  ports:
+    - name: smtp
+      port: 25
+      targetPort: smtp
+    - name: submission
+      port: 587
+      targetPort: submission
+    - name: imaps
+      port: 993
+      targetPort: imaps
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: luna-mail
+spec:
+  serviceName: luna-mail
+  replicas: 1
+  selector:
+    matchLabels:
+      app: luna-mail
+  template:
+    metadata:
+      labels:
+        app: luna-mail
+    spec:
+      containers:
+        - name: mail
+          image: luna-mail:local
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MAIL_DOMAIN
+              valueFrom:
+                configMapKeyRef: {name: luna-settings, key: MAIL_DOMAIN}
+            - name: MAIL_USERNAME
+              valueFrom:
+                secretKeyRef: {name: luna-secrets, key: MAIL_USERNAME}
+            - name: MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: luna-secrets, key: MAIL_PASSWORD}
+            - name: MAIL_TLS_CERT
+              value: /etc/mail-tls/tls.crt
+            - name: MAIL_TLS_KEY
+              value: /etc/mail-tls/tls.key
+          ports:
+            - name: smtp
+              containerPort: 25
+            - name: submission
+              containerPort: 587
+            - name: imaps
+              containerPort: 993
+          readinessProbe:
+            tcpSocket: {port: smtp}
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: {port: smtp}
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - name: mail
+              mountPath: /var/mail/vhosts
+            - name: tls
+              mountPath: /etc/mail-tls
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            secretName: luna-tls
+  volumeClaimTemplates:
+    - metadata:
+        name: mail
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
