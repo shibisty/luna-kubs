@@ -1,0 +1,19 @@
+{
+    "$schema": "https://raw.githubusercontent.com/shibisty/gtr/main/schema/gtr.schema.json",
+    "name": "luna",
+    "version": "0.0.0",
+    "private": true,
+    "description": "Luna: a backend platform for client applications. The gtr workspace of its services (ADR-0009).",
+    "engines": {
+        "go": ">=1.22"
+    },
+    "workspaces": [
+        "luna-keys",
+        "luna-dashboard",
+        "luna-auth"
+    ],
+    "scripts": {
+        "test": "gtr run -r test",
+        "test:integration": "gtr run -r test:integration"
+    }
+}
