@@ -41,8 +41,9 @@ your hosts file. The certificate is self-signed.
   rolls the Deployments.
 - `nginx/*.conf` here mirror `../nginx/sites/` (kustomize only reads files
   below this folder); change both.
-- `networkpolicy.yaml` lets only luna-auth and nginx reach the dashboard and
-  only the two services reach postgres. minikube enforces it only with a
+- `networkpolicy.yaml` lets only luna-auth and nginx reach the dashboard,
+  only nginx and the dashboard reach luna-auth, and only the two services
+  reach postgres. minikube enforces it only with a
   policy-aware CNI: `minikube start --cni=calico`.
 - The database passwords apply when the postgres volume is created. To start
   over: `kubectl delete -k k8s && kubectl -n luna delete pvc --all`.

@@ -5,8 +5,9 @@
 #   docker compose up -d
 #
 # Only nginx (80/443), postgres (127.0.0.1:5433, for `gtr dev`) and mail
-# publish ports. The services talk over luna-net; luna-auth checks API keys
-# against luna-dashboard's internal API, which nginx does not expose.
+# publish ports. The services talk over luna-net: luna-auth checks API keys
+# against luna-dashboard's internal API, the dashboard manages users through
+# luna-auth's; nginx exposes neither /internal/.
 
 x-app-build: &app-build
   context: .
@@ -24,6 +25,9 @@ x-dashboard-env: &dashboard-env
   DB_DRIVER: postgres
   DATABASE_DSN: postgres://dashboard_user:${DASHBOARD_DB_PASSWORD:-dashboard_password}@postgres:5432/dashboard?sslmode=require
   LUNA_SERVICE_TOKENS: ${LUNA_SERVICE_TOKEN:?set LUNA_SERVICE_TOKEN in .env (luna-cli key:generate --name LUNA_SERVICE_TOKEN)}
+  # The users pages call luna-auth's internal API with the same token.
+  LUNA_AUTH_URL: http://luna-auth:8080
+  LUNA_AUTH_TOKEN: ${LUNA_SERVICE_TOKEN}
 
 x-auth-env: &auth-env
   APP_NAME: luna-auth

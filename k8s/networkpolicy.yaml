@@ -41,6 +41,8 @@ spec:
   policyTypes: ["Ingress"]
   ingress:
     - from:
+        # nginx (the public API) and the dashboard (the internal API).
         - podSelector: {matchLabels: {app: luna-nginx}}
+        - podSelector: {matchLabels: {app: luna-dashboard}}
       ports:
         - port: 8080

@@ -26,6 +26,7 @@ configMapGenerator:
       - API_DOCS=true
       - DB_DRIVER=postgres
       - LUNA_DASHBOARD_URL=http://luna-dashboard:8080
+      - LUNA_AUTH_URL=http://luna-auth:8080
   - name: nginx-sites
     files:
       - nginx/auth.luna.conf

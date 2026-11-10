@@ -6,8 +6,8 @@ application then uses Luna's services with those keys.
 
 | Service | What it does |
 | --- | --- |
-| [luna-dashboard](luna-dashboard) | The developer console: accounts, applications, API keys. The only key authority; luna-auth asks it about every key (internal API, cached). |
-| [luna-auth](luna-auth) | Registration and sign-in of the application's own end users (username or email + password), JWTs per application, rotating refresh tokens, password reset, user administration. |
+| [luna-dashboard](luna-dashboard) | The developer console: accounts, applications, API keys, and each application's users and their data. The only key authority; luna-auth asks it about every key (internal API, cached). |
+| [luna-auth](luna-auth) | Registration and sign-in of the application's own end users (username or email + password), JWTs per application, rotating refresh tokens, password reset, user administration, and the application's own data about each user (text values by key). |
 | luna-pages | Text pages behind the same keys. Planned. |
 
 Shared code and tools:
@@ -26,9 +26,11 @@ and each member's `go.mod` is generated (git-ignored).
 
 | Scope | Allows |
 | --- | --- |
-| `auth:login` | register, sign in, refresh, sign out, `/v1/me`, password reset |
+| `auth:login` | register, sign in, refresh, sign out, `/v1/me` and `/v1/me/data` (read-only), password reset |
 | `auth:users.read` | list and read the application's users |
 | `auth:users.write` | change and delete them |
+| `auth:data.read` | read the application's data about its users |
+| `auth:data.write` | set and delete that data |
 | `pages:read`, `pages:write` | luna-pages (planned) |
 
 Keys go in the `X-API-Key` header. A server key (`sk_live_…`) is for

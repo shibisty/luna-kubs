@@ -49,6 +49,9 @@ spec:
             - name: LUNA_SERVICE_TOKENS
               valueFrom:
                 secretKeyRef: {name: luna-secrets, key: LUNA_SERVICE_TOKEN}
+            - name: LUNA_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef: {name: luna-secrets, key: LUNA_SERVICE_TOKEN}
           securityContext: &containerSecurity
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
