@@ -4,8 +4,8 @@
 FROM nginx:alpine
 
 RUN apk add --no-cache bash logrotate openssl \
- && addgroup -g 82 -S www-data \
- && adduser -u 82 -D -S -G www-data www-data \
+ && { grep -q '^www-data:' /etc/group || addgroup -g 82 -S www-data; } \
+ && { grep -q '^www-data:' /etc/passwd || adduser -u 82 -D -S -G www-data www-data; } \
  && touch /var/log/messages \
  && rm -f /etc/nginx/conf.d/default.conf
 
