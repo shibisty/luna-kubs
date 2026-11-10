@@ -94,11 +94,9 @@ services:
 
   # One-shot: applies pending migrations, then exits; the service waits for it.
   luna-dashboard-migrate:
-    build:
-      <<: *app-build
-      args:
-        SERVICE: luna-dashboard
+    # The luna-dashboard service's image (built once, below).
     image: luna-dashboard:local
+    pull_policy: never
     command: ["migrate"]
     restart: "no"
     healthcheck:
@@ -128,11 +126,8 @@ services:
       - luna-net
 
   luna-auth-migrate:
-    build:
-      <<: *app-build
-      args:
-        SERVICE: luna-auth
     image: luna-auth:local
+    pull_policy: never
     command: ["migrate"]
     restart: "no"
     healthcheck:

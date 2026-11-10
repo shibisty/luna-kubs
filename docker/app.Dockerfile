@@ -7,9 +7,12 @@
 #
 # The context is the repository root, because a service builds against its
 # workspace siblings (luna-keys). gtr resolves the dependencies from gtr.lock
-# (`gtr ci`, frozen); it reads tags and downloads packages through the GitHub
-# API, so pass a token as the github_token secret to get past the 60
-# requests an hour of anonymous access. The token never lands in a layer.
+# (`gtr ci`, frozen). The package store is a BuildKit cache mount, so a
+# rebuild first tries the store alone (`--offline`, no network); only when
+# something is missing does gtr read tags and download packages through the
+# GitHub API. Pass a token as the github_token secret to get past the 60
+# requests an hour of anonymous access; it never lands in a layer. The store
+# is locked while gtr runs, so parallel builds fill it once and share it.
 
 ARG GO_VERSION=1.26
 
@@ -38,11 +41,11 @@ ARG SERVICE
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 RUN test -n "${SERVICE}" || { echo "--build-arg SERVICE=<workspace member> is required" >&2; exit 1; }
-RUN --mount=type=cache,target=/root/.gtr \
+RUN --mount=type=cache,target=/root/.gtr,sharing=locked \
     --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=secret,id=github_token \
     export GITHUB_TOKEN="$(cat /run/secrets/github_token 2>/dev/null || true)" \
- && gtr ci \
+ && { gtr ci --offline 2>/dev/null || gtr ci; } \
  && cd "${SERVICE}" \
  && gtr build --target "${TARGETOS}/${TARGETARCH}" --out /out \
  && find /out -type f -name "${SERVICE}" -exec cp {} /app \; \
