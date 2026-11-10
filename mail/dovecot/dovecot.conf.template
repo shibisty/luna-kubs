@@ -1,0 +1,32 @@
+protocols = imap lmtp
+
+mail_location = maildir:/var/mail/vhosts/%d/%n
+
+namespace inbox {
+  inbox = yes
+}
+
+# Простейшая авторизация через passwd-файл внутри контейнера (см. entrypoint.sh,
+# который создаёт пользователя из MAIL_USER/MAIL_PASSWORD при первом старте).
+# Для реального продакшена с несколькими ящиками — замените на SQL/LDAP userdb.
+passdb {
+  driver = passwd-file
+  args = scheme=SHA512-CRYPT /etc/dovecot/users
+}
+userdb {
+  driver = passwd-file
+  args = /etc/dovecot/users
+}
+
+service auth {
+  # Постфикс стучится сюда за SASL-авторизацией (main.cf: smtpd_sasl_path = private/auth)
+  unix_listener /var/spool/postfix/private/auth {
+    mode = 0666
+    user = postfix
+    group = postfix
+  }
+}
+
+ssl = required
+ssl_cert = </etc/letsencrypt/live/${MAIL_DOMAIN}/cert.crt
+ssl_key  = </etc/letsencrypt/live/${MAIL_DOMAIN}/cert.key

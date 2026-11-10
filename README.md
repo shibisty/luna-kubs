@@ -1,27 +1,26 @@
 # Luna
 
-This repository contains the authentication service and infrastructure configuration for running it locally with Docker Compose and in Kubernetes.
+This repository contains the authentication service, dashboard application, and infrastructure configuration for running them locally with Docker Compose and in Kubernetes.
 
 ## Project structure
 
-- `auth/` — Go-based authentication service
-- `dashboard/` — Nuxt dashboard application
+- `luna-auth/` — Go-based authentication service
+- `luna-dashboard/` — Nuxt dashboard application
 - `postgres/` — PostgreSQL container configuration and initialization scripts
+- `k8s/` — Kubernetes manifests for the services and PostgreSQL
 - `docker-compose.yml` — local multi-container environment
-- `kubernetes.yml` — Kubernetes manifests for auth and PostgreSQL
-- `k8s/` — additional Kubernetes resources if present
 
 ## Components
 
-### Auth service
+### luna-auth
 
-The auth service exposes REST endpoints for registration, login, and JWT verification. It connects to PostgreSQL and runs on port `8080` inside the container, exposed as `8000` locally.
+The auth service exposes REST endpoints for registration, login, and JWT verification. It connects to PostgreSQL and runs on port `8080` inside the container.
 
-### PostgreSQL
+### postgres
 
-A dedicated PostgreSQL container is used for the auth database and also supports the dashboard service.
+A dedicated PostgreSQL container is used for the auth and dashboard databases and includes TLS setup and initialization scripts.
 
-### Dashboard
+### luna-dashboard
 
 The dashboard service is a Nuxt-based application that uses Prisma and a separate database connection.
 
@@ -35,9 +34,9 @@ docker compose up --build
 
 Services:
 
-- Auth: `http://localhost:8000`
-- Dashboard: `http://localhost:3000`
-- PostgreSQL: `localhost:5432`
+- `luna-auth`: http://localhost:8080
+- `luna-dashboard`: http://localhost:3000
+- `postgres`: localhost:5432
 
 Stop the stack:
 
@@ -59,34 +58,36 @@ Start Minikube:
 minikube start
 ```
 
-Build the auth image for Minikube:
+Build the images for Minikube:
 
 ```bash
-minikube image build -t auth:latest ./auth
+minikube image build -t luna-auth:latest ./luna-auth
+minikube image build -t luna-dashboard:latest ./luna-dashboard
 ```
 
 Apply the manifests:
 
 ```bash
-kubectl apply -f kubernetes.yml
+kubectl apply -k k8s
 ```
 
 Check the deployment:
 
 ```bash
-kubectl get pods -n auth
-kubectl get svc -n auth
+kubectl get pods -n luna
+kubectl get svc -n luna
 ```
 
-Port-forward the service:
+Port-forward the services:
 
 ```bash
-kubectl port-forward svc/auth 8000:80 -n auth
+kubectl port-forward svc/luna-auth 8080:8080 -n luna
+kubectl port-forward svc/luna-dashboard 3000:3000 -n luna
 ```
 
 ## Useful environment variables
 
-### Auth service
+### luna-auth
 
 - `SECRET_KEY`
 - `DB_HOST`
@@ -95,8 +96,9 @@ kubectl port-forward svc/auth 8000:80 -n auth
 - `DB_USER`
 - `DB_PASSWORD`
 - `DB_SSLMODE`
+- `DB_SSLROOTCERT`
 
-### Dashboard service
+### luna-dashboard
 
 - `DATABASE_URL`
 - `PORT`

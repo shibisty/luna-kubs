@@ -1,9 +1,41 @@
 services:
+  certbot-init:
+    image: alpine:3.20
+    entrypoint: /init-dummy-certs.sh
+    restart: "no"
+    volumes:
+      - ./certbot/init-dummy-certs.sh:/init-dummy-certs.sh:ro
+      - certbot_conf:/etc/letsencrypt
+    environment:
+      - API_DOMAIN=${AUTH_DOMAIN}
+      - FRONTEND_DOMAIN=${DASHBOARD_DOMAIN}
+      - MAIL_DOMAIN=${MAIL_DOMAIN}
+    networks:
+      - luna-net
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: nginx:latest
+    container_name: luna-nginx
+    restart: unless-stopped
+    depends_on:
+      - certbot-init
+      - luna-auth
+      - luna-dashboard
+    volumes:
+      - ./nginx/sites:/etc/nginx/sites-available
+      - ./nginx/ssl:/etc/nginx/ssl
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - luna-net
   postgres:
     build:
       context: ./postgres
       dockerfile: Dockerfile
-    image: luna-postgres:latest
+    image: postgres:latest
     container_name: luna-postgres
     restart: unless-stopped
     entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate-tls.sh && exec /usr/local/bin/docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf -c hba_file=/etc/postgresql/pg_hba.conf"]
@@ -22,6 +54,68 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - luna-net
+
+  mail:
+    depends_on:
+      - certbot-init
+    build:
+      context: ./mail
+    restart: unless-stopped
+    hostname: mail.${MAIL_DOMAIN}
+    environment:
+      - MAIL_DOMAIN=${MAIL_DOMAIN}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+    volumes:
+      - mail_data:/var/mail/vhosts
+      - certbot_conf:/etc/letsencrypt:ro
+      # - ./locale_ssl:/etc/letsencrypt:ro
+    ports:
+      - "25:25"
+      - "587:587"
+      - "993:993"
+    networks:
+      - luna-net
+
+  roundcube:
+    image: roundcube/roundcubemail:latest
+    restart: unless-stopped
+    depends_on:
+      - mail
+    ports:
+      - "8081:80"
+    environment:
+      ROUNDCUBEMAIL_DEFAULT_HOST: ssl://mail
+      ROUNDCUBEMAIL_DEFAULT_PORT: 993
+
+      ROUNDCUBEMAIL_SMTP_SERVER: tls://mail
+      ROUNDCUBEMAIL_SMTP_PORT: 587
+
+      ROUNDCUBEMAIL_UPLOAD_MAX_FILESIZE: 25M
+      ROUNDCUBEMAIL_DB_TYPE: sqlite
+
+      ROUNDCUBEMAIL_CONFIG_DEFAULTS: |
+        $config['imap_conn_options'] = [
+          'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+            'allow_self_signed' => true,
+          ],
+        ];
+
+        $config['smtp_conn_options'] = [
+          'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+            'allow_self_signed' => true,
+          ],
+        ];
+
+    volumes:
+      - roundcube_data:/var/roundcube
+      - ./roundcube/config.inc.php:/var/www/html/config/config.inc.php:ro
     networks:
       - luna-net
 
@@ -47,7 +141,7 @@ services:
     volumes:
       - postgres-tls:/etc/postgresql/tls:ro
     ports:
-      - "8000:8000"
+      - "8080:8080"
     networks:
       - luna-net
 
@@ -74,6 +168,11 @@ services:
 volumes:
   postgres-data:
   postgres-tls:
+  storage_data:
+  mail_data:
+  certbot_conf:
+  certbot_www:
+  roundcube_data:
 
 networks:
   luna-net:
