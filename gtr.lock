@@ -330,6 +330,7 @@
     "luna-auth",
     "luna-cli",
     "luna-dashboard",
-    "luna-keys"
+    "luna-keys",
+    "luna-pages"
   ]
 }
