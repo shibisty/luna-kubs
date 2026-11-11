@@ -28,6 +28,9 @@ x-dashboard-env: &dashboard-env
   # The users pages call luna-auth's internal API with the same token.
   LUNA_AUTH_URL: http://luna-auth:8080
   LUNA_AUTH_TOKEN: ${LUNA_SERVICE_TOKEN}
+  # The site editor calls luna-pages' internal API, with the same token.
+  LUNA_PAGES_URL: http://luna-pages:8080
+  LUNA_PAGES_TOKEN: ${LUNA_SERVICE_TOKEN}
 
 x-auth-env: &auth-env
   APP_NAME: luna-auth
