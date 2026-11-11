@@ -37,6 +37,7 @@ COPY luna-keys/ luna-keys/
 COPY luna-cli/ luna-cli/
 COPY luna-dashboard/ luna-dashboard/
 COPY luna-auth/ luna-auth/
+COPY luna-pages/ luna-pages/
 ARG SERVICE
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64

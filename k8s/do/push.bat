@@ -11,7 +11,7 @@ if "%~2"=="" (
 )
 set R=registry.digitalocean.com/%~1
 set T=%~2
-for %%s in (luna-dashboard luna-auth luna-nginx) do (
+for %%s in (luna-dashboard luna-auth luna-pages luna-nginx) do (
   docker tag %%s:local %R%/%%s:%T% || exit /b 1
   docker push %R%/%%s:%T% || exit /b 1
 )

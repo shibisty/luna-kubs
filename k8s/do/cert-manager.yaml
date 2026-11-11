@@ -49,11 +49,13 @@ spec:
   issuerRef:
     kind: Issuer
     name: letsencrypt
-  dnsNames: # settings.env: AUTH_HOST, DASHBOARD_HOST, WEBMAIL_HOST, MAIL_HOST
+  dnsNames: # settings.env: AUTH_HOST, DASHBOARD_HOST, WEBMAIL_HOST, MAIL_HOST,
+             # PAGES_HOST
     - auth.example.com
     - dashboard.example.com
     - webmail.example.com
     - mail.example.com
+    - pages.example.com
   privateKey:
     algorithm: ECDSA
     size: 256

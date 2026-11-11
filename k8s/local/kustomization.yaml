@@ -24,6 +24,7 @@ configMapGenerator:
     files:
       - nginx/auth.luna.conf
       - nginx/dashboard.luna.conf
+      - nginx/pages.luna.conf
 secretGenerator:
   - name: luna-secrets
     envs:

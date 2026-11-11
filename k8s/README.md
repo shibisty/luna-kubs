@@ -4,16 +4,17 @@ Kustomize, in three parts:
 
 | Folder | |
 | --- | --- |
-| `base/` | what every cluster runs: postgres (StatefulSet), luna-dashboard and luna-auth (migrations in an init container), NetworkPolicy, namespace `luna` |
+| `base/` | what every cluster runs: postgres (StatefulSet), luna-dashboard, luna-auth and luna-pages (migrations in an init container), NetworkPolicy, namespace `luna` |
 | `local/` | minikube: images loaded from docker compose, nginx with a self-signed certificate |
 | `do/` | DigitalOcean Kubernetes: images from DigitalOcean Container Registry, Let's Encrypt certificates (cert-manager), load balancers, mail and webmail |
 
 | Workload | Image | Notes |
 | --- | --- | --- |
-| `postgres` (StatefulSet) | `luna-postgres:18` | TLS, creates `auth_db` and `dashboard` on first start |
+| `postgres` (StatefulSet) | `luna-postgres:18` | TLS, creates `auth_db`, `dashboard` and `pages_db` on first start |
 | `luna-dashboard` | `luna-dashboard` | init container `migrate`, then the server on 8080 |
 | `luna-auth` | `luna-auth` | init container `migrate`, then the server on 8080 |
-| `luna-nginx` (LoadBalancer) | `luna-nginx` | 80 → 443; hides `/internal/` on both hosts |
+| `luna-pages` | `luna-pages` | init container `migrate`, then the server on 8080 |
+| `luna-nginx` (LoadBalancer) | `luna-nginx` | 80 → 443; hides `/internal/` on every service host |
 | `luna-mail` (StatefulSet, LoadBalancer) | `luna-mail` | `do/` only: postfix + dovecot, 25 / 587 / 993 |
 | `roundcube` | `roundcube/roundcubemail` | `do/` only: webmail |
 
@@ -22,7 +23,7 @@ Kustomize, in three parts:
 ```sh
 # 1. Images (from the repository root)
 docker compose build
-minikube image load luna-postgres:18 luna-dashboard:local luna-auth:local luna-nginx:local
+minikube image load luna-postgres:18 luna-dashboard:local luna-auth:local luna-pages:local luna-nginx:local
 
 # 2. Secrets: copy and fill in (generate the two service secrets with luna-cli)
 cp k8s/local/secrets.env.example k8s/local/secrets.env
@@ -37,7 +38,7 @@ kubectl -n luna get pods -w
 minikube tunnel
 ```
 
-Point `auth.luna.local` and `dashboard.luna.local` at the tunnel address in
+Point `auth.luna.local`, `dashboard.luna.local` and `pages.luna.local` at the tunnel address in
 your hosts file. The certificate is self-signed.
 
 ## DigitalOcean (`do/`)
@@ -93,7 +94,7 @@ kubectl -n luna get certificate luna-tls -w
 kubectl -n luna get svc luna-nginx luna-mail      # the two load balancers' addresses
 ```
 
-**5. DNS.** `AUTH_HOST`, `DASHBOARD_HOST`, `WEBMAIL_HOST` → A record to
+**5. DNS.** `AUTH_HOST`, `DASHBOARD_HOST`, `PAGES_HOST`, `WEBMAIL_HOST` → A record to
 `luna-nginx`'s address; `MAIL_HOST` → A record to `luna-mail`'s; an MX record
 for `MAIL_DOMAIN` → `MAIL_HOST`; for delivery, SPF (`v=spf1 mx -all`) and
 later DKIM/DMARC. Then uncomment `do-loadbalancer-hostname` in
@@ -111,7 +112,7 @@ later DKIM/DMARC. Then uncomment `do-loadbalancer-hostname` in
   support ticket, with the sending use case (transactional mail of the
   platform, low volume). The load balancer's address has no reverse DNS
   record of your choosing, which big mail providers weigh as well.
-- **Certificates.** One certificate (`luna-tls`) for all four hosts, ECDSA,
+- **Certificates.** One certificate (`luna-tls`) for all five hosts, ECDSA,
   renewed by cert-manager 30 days before expiry. nginx reloads every 6
   hours and postfix/dovecot every 12, so a renewal is live within a day. To
   try the setup without Let's Encrypt's rate limits, point the Certificate's
@@ -127,8 +128,11 @@ later DKIM/DMARC. Then uncomment `do-loadbalancer-hostname` in
   set up yet.
 - **Costs.** Two load balancers (web and mail) are billed apart from the
   nodes.
-- `networkpolicy.yaml`: only nginx and luna-auth reach the dashboard, only
-  nginx and the dashboard reach luna-auth, only the two services reach
-  postgres. DOKS enforces it (Cilium); minikube only with `--cni=calico`.
-- The database passwords apply when the postgres volume is created. To start
+- `networkpolicy.yaml`: only nginx, luna-auth and luna-pages reach the
+  dashboard, only nginx and the dashboard reach luna-auth and luna-pages,
+  only the services reach postgres. DOKS enforces it (Cilium); minikube only with `--cni=calico`.
+- The database passwords apply when the postgres volume is created. A
+  service added later (luna-pages) gets its database on an existing volume
+  with `kubectl -n luna exec postgres-0 -- bash /docker-entrypoint-initdb.d/10-luna.sh`
+  (idempotent; push the new luna-postgres image and let the pod restart first). To start
   over locally: `kubectl delete -k k8s/local && kubectl -n luna delete pvc --all`.

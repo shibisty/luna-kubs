@@ -2,4 +2,5 @@
 !default.conf
 !auth.luna.conf
 !dashboard.luna.conf
+!pages.luna.conf
 !mail.luna.conf

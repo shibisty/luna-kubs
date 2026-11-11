@@ -1,4 +1,4 @@
-# Luna, locally: postgres, the two Go services behind nginx, and mail.
+# Luna, locally: postgres, the Go services behind nginx, and mail.
 #
 #   cp .env.example .env            # then fill in the secrets (see the file)
 #   docker compose build            # GITHUB_TOKEN in .env or the shell
@@ -7,7 +7,7 @@
 # Only nginx (80/443), postgres (127.0.0.1:5433, for `gtr dev`) and mail
 # publish ports. The services talk over luna-net: luna-auth checks API keys
 # against luna-dashboard's internal API, the dashboard manages users through
-# luna-auth's; nginx exposes neither /internal/.
+# luna-auth's; luna-pages checks keys the same way; nginx exposes no /internal/.
 
 x-app-build: &app-build
   context: .
@@ -47,6 +47,23 @@ x-auth-env: &auth-env
   MAIL_PASSWORD: ${AUTH_MAIL_PASSWORD:-}
   MAIL_FROM: ${AUTH_MAIL_FROM:-Luna <no-reply@luna.local>}
 
+x-pages-env: &pages-env
+  APP_NAME: luna-pages
+  APP_ENV: ${APP_ENV:-local}
+  APP_URL: https://${PAGES_DOMAIN:-pages.luna.local}
+  HTTP_ADDR: ":8080"
+  HTTP_TRUSTED_PROXIES: private
+  API_DOCS: "true"
+  DB_DRIVER: postgres
+  DATABASE_DSN: postgres://pages_service:${PAGES_DB_PASSWORD:-pages_password}@postgres:5432/pages_db?sslmode=require
+  LUNA_DASHBOARD_URL: http://luna-dashboard:8080
+  LUNA_DASHBOARD_TOKEN: ${LUNA_SERVICE_TOKEN:?set LUNA_SERVICE_TOKEN in .env}
+
+x-db-passwords: &db-passwords
+  AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth_password}
+  DASHBOARD_DB_PASSWORD: ${DASHBOARD_DB_PASSWORD:-dashboard_password}
+  PAGES_DB_PASSWORD: ${PAGES_DB_PASSWORD:-pages_password}
+
 services:
   certbot-init:
     image: alpine:3.20
@@ -71,13 +88,12 @@ services:
     restart: unless-stopped
     entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate-tls.sh && exec /usr/local/bin/docker-entrypoint.sh postgres -c config_file=/etc/postgresql/postgresql.conf -c hba_file=/etc/postgresql/pg_hba.conf"]
     environment:
-      # The superuser. These, and the two service passwords below, apply only
-      # when the data volume is created; change them later with ALTER ROLE.
+      # The superuser: applies when the data volume is created. The service
+      # roles and databases are (re)made by postgres-init on every up.
       POSTGRES_DB: auth_db
       POSTGRES_USER: auth
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth_password}
-      DASHBOARD_DB_PASSWORD: ${DASHBOARD_DB_PASSWORD:-dashboard_password}
+      <<: *db-passwords
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
@@ -92,6 +108,28 @@ services:
     networks:
       - luna-net
 
+  # One-shot: the services' roles and databases (10-luna.sh, idempotent), so a
+  # new service gets its database on an existing volume too.
+  postgres-init:
+    image: luna-postgres:18
+    pull_policy: never
+    entrypoint: ["/bin/bash", "/docker-entrypoint-initdb.d/10-luna.sh"]
+    restart: "no"
+    healthcheck:
+      disable: true
+    environment:
+      PGHOST: postgres
+      PGSSLMODE: require
+      PGPASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth
+      <<: *db-passwords
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - luna-net
+
   # One-shot: applies pending migrations, then exits; the service waits for it.
   luna-dashboard-migrate:
     # The luna-dashboard service's image (built once, below).
@@ -103,8 +141,8 @@ services:
       disable: true
     environment: *dashboard-env
     depends_on:
-      postgres:
-        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
     networks:
       - luna-net
 
@@ -134,8 +172,8 @@ services:
       disable: true
     environment: *auth-env
     depends_on:
-      postgres:
-        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
     networks:
       - luna-net
 
@@ -156,6 +194,37 @@ services:
     networks:
       - luna-net
 
+  luna-pages-migrate:
+    image: luna-pages:local
+    pull_policy: never
+    command: ["migrate"]
+    restart: "no"
+    healthcheck:
+      disable: true
+    environment: *pages-env
+    depends_on:
+      postgres-init:
+        condition: service_completed_successfully
+    networks:
+      - luna-net
+
+  luna-pages:
+    build:
+      <<: *app-build
+      args:
+        SERVICE: luna-pages
+    image: luna-pages:local
+    container_name: luna-pages
+    restart: unless-stopped
+    environment: *pages-env
+    depends_on:
+      luna-pages-migrate:
+        condition: service_completed_successfully
+      luna-dashboard:
+        condition: service_healthy
+    networks:
+      - luna-net
+
   nginx:
     build:
       context: ./nginx
@@ -169,6 +238,8 @@ services:
       luna-auth:
         condition: service_healthy
       luna-dashboard:
+        condition: service_healthy
+      luna-pages:
         condition: service_healthy
     volumes:
       - ./nginx/sites:/etc/nginx/sites-available

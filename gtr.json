@@ -11,6 +11,7 @@
         "luna-keys",
         "luna-dashboard",
         "luna-auth",
+        "luna-pages",
         "luna-cli"
     ],
     "scripts": {

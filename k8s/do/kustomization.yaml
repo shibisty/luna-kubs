@@ -25,6 +25,9 @@ images:
   - name: luna-auth
     newName: registry.digitalocean.com/luna-registry/luna-auth
     newTag: "0.1.0"
+  - name: luna-pages
+    newName: registry.digitalocean.com/luna-registry/luna-pages
+    newTag: "0.1.0"
   - name: luna-nginx
     newName: registry.digitalocean.com/luna-registry/luna-nginx
     newTag: "0.1.0"
@@ -51,6 +54,7 @@ configMapGenerator:
       - nginx/redirect.conf.template
       - nginx/auth.conf.template
       - nginx/dashboard.conf.template
+      - nginx/pages.conf.template
       - nginx/webmail.conf.template
   - name: roundcube-config
     files:
@@ -147,3 +151,12 @@ replacements:
     targets:
       - select: {kind: Certificate, name: luna-tls}
         fieldPaths: [spec.dnsNames.3]
+  - source: {kind: ConfigMap, name: luna-settings, fieldPath: data.PAGES_HOST}
+    targets:
+      - select: {kind: Certificate, name: luna-tls}
+        fieldPaths: [spec.dnsNames.4]
+      - select: {kind: Deployment, name: luna-pages}
+        fieldPaths:
+          - spec.template.spec.containers.[name=luna-pages].env.[name=APP_URL].value
+          - spec.template.spec.initContainers.[name=migrate].env.[name=APP_URL].value
+        options: {delimiter: "//", index: 1}

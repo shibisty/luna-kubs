@@ -1,4 +1,4 @@
-# What every Luna cluster runs: postgres and the two services, in namespace
+# What every Luna cluster runs: postgres and the services, in namespace
 # luna. Not applied by itself: an overlay adds the edge (nginx), the
 # secrets and the environment. local/ is minikube, do/ is DigitalOcean.
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -12,6 +12,7 @@ resources:
   - postgres.yaml
   - dashboard.yaml
   - auth.yaml
+  - pages.yaml
   - networkpolicy.yaml
 configMapGenerator:
   - name: luna-config

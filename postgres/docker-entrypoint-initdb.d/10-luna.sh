@@ -1,11 +1,15 @@
 #!/bin/bash
-# Luna's databases: one role and one database per service. Runs once, when
-# the data volume is created (docker-entrypoint-initdb.d). The passwords come
-# from the container environment (AUTH_DB_PASSWORD, DASHBOARD_DB_PASSWORD).
+# Luna's databases: one role and one database per service. Runs when the data
+# volume is created (docker-entrypoint-initdb.d) and again on every
+# `docker compose up` (the postgres-init service), so a new service gets its
+# database on an existing volume; every step is idempotent and the passwords
+# follow the environment (AUTH_DB_PASSWORD, DASHBOARD_DB_PASSWORD,
+# PAGES_DB_PASSWORD).
 set -euo pipefail
 
 : "${AUTH_DB_PASSWORD:?AUTH_DB_PASSWORD is required}"
 : "${DASHBOARD_DB_PASSWORD:?DASHBOARD_DB_PASSWORD is required}"
+: "${PAGES_DB_PASSWORD:?PAGES_DB_PASSWORD is required}"
 
 # service_db ROLE DATABASE PASSWORD
 service_db() {
@@ -25,3 +29,4 @@ service_db() {
 
 service_db auth_service auth_db "$AUTH_DB_PASSWORD"
 service_db dashboard_user dashboard "$DASHBOARD_DB_PASSWORD"
+service_db pages_service pages_db "$PAGES_DB_PASSWORD"

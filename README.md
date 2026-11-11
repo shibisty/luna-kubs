@@ -8,7 +8,7 @@ application then uses Luna's services with those keys.
 | --- | --- |
 | [luna-dashboard](luna-dashboard) | The developer console: accounts, applications, API keys, and each application's users and their data. The only key authority; luna-auth asks it about every key (internal API, cached). |
 | [luna-auth](luna-auth) | Registration and sign-in of the application's own end users (username or email + password), JWTs per application, rotating refresh tokens, password reset, user administration, and the application's own data about each user (text values by key). |
-| luna-pages | Text pages behind the same keys. Planned. |
+| luna-pages | A small CMS per application: a site, layouts, templates with typed fields, and pages (free ones built in GrapesJS, or entries that fill a template), as drafts behind an editor API. Publishing and rendering are next. |
 
 Shared code and tools:
 
@@ -41,10 +41,10 @@ works only from the application's allowed origins and only with
 ## Layout
 
 ```
-luna-dashboard/  luna-auth/  luna-keys/  luna-cli/   the workspace (submodules)
+luna-dashboard/  luna-auth/  luna-pages/  luna-keys/  luna-cli/   the workspace (submodules)
 docker/app.Dockerfile      one image recipe for every service
 docker-compose.yml         the local stack
-nginx/                     the edge: TLS, the two hosts
+nginx/                     the edge: TLS, the service hosts
 postgres/                  PostgreSQL 18 with TLS and the service databases
 k8s/                       the same stack on Kubernetes: base/, local/ (minikube), do/ (DigitalOcean)
 mail/  roundcube/  certbot/   local mail, webmail, certificates
@@ -56,7 +56,7 @@ You need Docker, Go 1.26 and gtr. Point the hosts at your machine
 (`C:\Windows\System32\drivers\etc\hosts` or `/etc/hosts`):
 
 ```
-127.0.0.1 dashboard.luna.local auth.luna.local mail.luna.local
+127.0.0.1 dashboard.luna.local auth.luna.local pages.luna.local mail.luna.local
 ```
 
 ### The whole stack in Docker
@@ -77,9 +77,11 @@ docker compose up -d
 
 - https://dashboard.luna.local — the console (sign up, create an application and a key)
 - https://auth.luna.local/docs — luna-auth's API (Swagger UI); `/openapi.yaml` is the document
+- https://pages.luna.local/docs — luna-pages' editor API (a key with `pages:write`)
 
-The certificate is self-signed. Migrations run before each service starts
-(`luna-*-migrate`). Check the stack end to end:
+The certificate is self-signed. `postgres-init` creates any missing service
+database (also on an existing volume), then migrations run before each
+service starts (`luna-*-migrate`). Check the stack end to end:
 
 ```bash
 cd luna-cli && go run . smoke --insecure
@@ -99,7 +101,7 @@ cd luna-dashboard && cp .env.example .env    # then the secrets, see the file
 gtr dev                                      # rebuilds and restarts on change
 ```
 
-The same for luna-auth, whose `LUNA_DASHBOARD_TOKEN` must be one of the
+The same for luna-auth and luna-pages, whose `LUNA_DASHBOARD_TOKEN` must be one of the
 dashboard's `LUNA_SERVICE_TOKENS`. Each service's README has the rest.
 
 ### Kubernetes
