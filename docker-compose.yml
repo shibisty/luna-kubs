@@ -30,6 +30,9 @@ x-dashboard-env: &dashboard-env
   LUNA_AUTH_TOKEN: ${LUNA_SERVICE_TOKEN}
   # The site editor calls luna-pages' internal API, with the same token.
   LUNA_PAGES_URL: http://luna-pages:8080
+  # A developer's session; a refresh token renews it while they work (2h away
+  # signs them out, 30 days with Remember me: DASHBOARD_REFRESH_TTL, DASHBOARD_REMEMBER_TTL).
+  AUTH_SESSION_TTL: 30m
   LUNA_PAGES_TOKEN: ${LUNA_SERVICE_TOKEN}
 
 x-auth-env: &auth-env

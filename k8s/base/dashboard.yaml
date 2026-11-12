@@ -41,6 +41,8 @@ spec:
               value: luna-dashboard
             - name: APP_URL
               value: https://dashboard.luna.local
+            - name: AUTH_SESSION_TTL
+              value: 30m
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef: {name: luna-secrets, key: DASHBOARD_DB_PASSWORD}
