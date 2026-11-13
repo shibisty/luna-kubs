@@ -13,3 +13,6 @@
 [submodule "luna-pages"]
 	path = luna-pages
 	url = https://github.com/shibisty/luna-pages.git
+[submodule "luna-files"]
+	path = luna-files
+	url = https://github.com/shibisty/luna-files.git

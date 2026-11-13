@@ -12,6 +12,7 @@
         "luna-dashboard",
         "luna-auth",
         "luna-pages",
+        "luna-files",
         "luna-cli"
     ],
     "scripts": {

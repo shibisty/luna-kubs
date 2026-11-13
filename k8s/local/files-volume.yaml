@@ -1,0 +1,10 @@
+# luna-files' bytes on minikube (FILES_STORAGE=disk).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: luna-files
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi

@@ -4,16 +4,17 @@ Kustomize, in three parts:
 
 | Folder | |
 | --- | --- |
-| `base/` | what every cluster runs: postgres (StatefulSet), luna-dashboard, luna-auth and luna-pages (migrations in an init container), NetworkPolicy, namespace `luna` |
+| `base/` | what every cluster runs: postgres (StatefulSet), luna-dashboard, luna-auth, luna-pages and luna-files (migrations in an init container), NetworkPolicy, namespace `luna` |
 | `local/` | minikube: images loaded from docker compose, nginx with a self-signed certificate |
 | `do/` | DigitalOcean Kubernetes: images from DigitalOcean Container Registry, Let's Encrypt certificates (cert-manager), load balancers, mail and webmail |
 
 | Workload | Image | Notes |
 | --- | --- | --- |
-| `postgres` (StatefulSet) | `luna-postgres:18` | TLS, creates `auth_db`, `dashboard` and `pages_db` on first start |
+| `postgres` (StatefulSet) | `luna-postgres:18` | TLS, creates `auth_db`, `dashboard`, `pages_db` and `files_db` on first start |
 | `luna-dashboard` | `luna-dashboard` | init container `migrate`, then the server on 8080 |
 | `luna-auth` | `luna-auth` | init container `migrate`, then the server on 8080 |
 | `luna-pages` | `luna-pages` | init container `migrate`, then the server on 8080 |
+| `luna-files` | `luna-files` | init container `migrate`, then the server on 8080; the bytes in Spaces (`do/`) or on a 2 GiB volume (`local/`, `FILES_STORAGE=disk`) |
 | `luna-nginx` (LoadBalancer) | `luna-nginx` | 80 → 443; hides `/internal/` on every service host |
 | `luna-mail` (StatefulSet, LoadBalancer) | `luna-mail` | `do/` only: postfix + dovecot, 25 / 587 / 993 |
 | `roundcube` | `roundcube/roundcubemail` | `do/` only: webmail |
@@ -23,7 +24,7 @@ Kustomize, in three parts:
 ```sh
 # 1. Images (from the repository root)
 docker compose build
-minikube image load luna-postgres:18 luna-dashboard:local luna-auth:local luna-pages:local luna-nginx:local
+minikube image load luna-postgres:18 luna-dashboard:local luna-auth:local luna-pages:local luna-files:local luna-nginx:local
 
 # 2. Secrets: copy and fill in (generate the two service secrets with luna-cli)
 cp k8s/local/secrets.env.example k8s/local/secrets.env
@@ -38,7 +39,7 @@ kubectl -n luna get pods -w
 minikube tunnel
 ```
 
-Point `auth.luna.local`, `dashboard.luna.local` and `pages.luna.local` at the tunnel address in
+Point `auth.luna.local`, `dashboard.luna.local`, `pages.luna.local` and `files.luna.local` at the tunnel address in
 your hosts file. The certificate is self-signed.
 
 ## DigitalOcean (`do/`)
@@ -81,9 +82,18 @@ go run . key:generate --env ../k8s/do/secrets.env --name LUNA_SERVICE_TOKEN
 go run . key:generate --env ../k8s/do/secrets.env --name POSTGRES_PASSWORD
 go run . key:generate --env ../k8s/do/secrets.env --name AUTH_DB_PASSWORD
 go run . key:generate --env ../k8s/do/secrets.env --name DASHBOARD_DB_PASSWORD
+go run . key:generate --env ../k8s/do/secrets.env --name FILES_DB_PASSWORD
 go run . key:generate --env ../k8s/do/secrets.env --name MAIL_PASSWORD
 cd ..
 ```
+
+luna-files keeps the bytes in a Spaces bucket: create it (with the CDN on) in
+the same region, a Spaces access key, and put them into `settings.env`
+(`FILES_S3_*`, `FILES_PUBLIC_URL` = the CDN endpoint) and `secrets.env`
+(`FILES_S3_KEY`, `FILES_S3_SECRET`). Large uploads go from the browser
+straight to the bucket, so its CORS settings must allow `PUT` and `GET` from
+`https://<DASHBOARD_HOST>` (and from the clients' sites that upload) with the
+headers `Content-Type` and `x-amz-acl`.
 
 **4. Apply** and wait for the certificate (DNS-01 takes a few minutes; nginx
 and mail start once it is there):
@@ -94,7 +104,7 @@ kubectl -n luna get certificate luna-tls -w
 kubectl -n luna get svc luna-nginx luna-mail      # the two load balancers' addresses
 ```
 
-**5. DNS.** `AUTH_HOST`, `DASHBOARD_HOST`, `PAGES_HOST`, `WEBMAIL_HOST` → A record to
+**5. DNS.** `AUTH_HOST`, `DASHBOARD_HOST`, `PAGES_HOST`, `FILES_HOST`, `WEBMAIL_HOST` → A record to
 `luna-nginx`'s address; `MAIL_HOST` → A record to `luna-mail`'s; an MX record
 for `MAIL_DOMAIN` → `MAIL_HOST`; for delivery, SPF (`v=spf1 mx -all`) and
 later DKIM/DMARC. Then uncomment `do-loadbalancer-hostname` in

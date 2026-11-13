@@ -16,7 +16,7 @@ fi
 if compgen -G "/etc/nginx/templates/*.conf.template" > /dev/null; then
     command -v envsubst > /dev/null || { echo "startup.sh: envsubst is missing (it ships with nginx:alpine)" >&2; exit 1; }
     for t in /etc/nginx/templates/*.conf.template; do
-        envsubst '${AUTH_HOST} ${DASHBOARD_HOST} ${PAGES_HOST} ${WEBMAIL_HOST}' < "$t" \
+        envsubst '${AUTH_HOST} ${DASHBOARD_HOST} ${PAGES_HOST} ${FILES_HOST} ${WEBMAIL_HOST}' < "$t" \
             > "/etc/nginx/sites-available/$(basename "$t" .template)"
     done
     (while sleep 6h; do nginx -s reload; done) &

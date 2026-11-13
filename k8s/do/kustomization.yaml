@@ -28,6 +28,9 @@ images:
   - name: luna-pages
     newName: registry.digitalocean.com/luna-registry/luna-pages
     newTag: "0.1.0"
+  - name: luna-files
+    newName: registry.digitalocean.com/luna-registry/luna-files
+    newTag: "0.1.0"
   - name: luna-nginx
     newName: registry.digitalocean.com/luna-registry/luna-nginx
     newTag: "0.1.0"
@@ -55,6 +58,7 @@ configMapGenerator:
       - nginx/auth.conf.template
       - nginx/dashboard.conf.template
       - nginx/pages.conf.template
+      - nginx/files.conf.template
       - nginx/webmail.conf.template
   - name: roundcube-config
     files:
@@ -120,6 +124,30 @@ patches:
                     valueFrom:
                       configMapKeyRef: {name: luna-settings, key: AUTH_MAIL_FROM}
 
+  # luna-files keeps the bytes in Spaces (settings.env, secrets.env).
+  - target: {kind: Deployment, name: luna-files}
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: luna-files
+      spec:
+        template:
+          spec:
+            containers:
+              - name: luna-files
+                env: &filesEnv
+                  - {name: FILES_S3_ENDPOINT, valueFrom: {configMapKeyRef: {name: luna-settings, key: FILES_S3_ENDPOINT}}}
+                  - {name: FILES_S3_REGION, valueFrom: {configMapKeyRef: {name: luna-settings, key: FILES_S3_REGION}}}
+                  - {name: FILES_S3_BUCKET, valueFrom: {configMapKeyRef: {name: luna-settings, key: FILES_S3_BUCKET}}}
+                  - {name: FILES_PUBLIC_URL, valueFrom: {configMapKeyRef: {name: luna-settings, key: FILES_PUBLIC_URL}}}
+                  - {name: FILES_QUOTA, valueFrom: {configMapKeyRef: {name: luna-settings, key: FILES_QUOTA}}}
+                  - {name: FILES_S3_KEY, valueFrom: {secretKeyRef: {name: luna-secrets, key: FILES_S3_KEY}}}
+                  - {name: FILES_S3_SECRET, valueFrom: {secretKeyRef: {name: luna-secrets, key: FILES_S3_SECRET}}}
+            initContainers:
+              - name: migrate
+                env: *filesEnv
+
 replacements:
   - source: {kind: ConfigMap, name: luna-settings, fieldPath: data.LETSENCRYPT_EMAIL}
     targets:
@@ -158,5 +186,14 @@ replacements:
       - select: {kind: Deployment, name: luna-pages}
         fieldPaths:
           - spec.template.spec.containers.[name=luna-pages].env.[name=APP_URL].value
+          - spec.template.spec.initContainers.[name=migrate].env.[name=APP_URL].value
+        options: {delimiter: "//", index: 1}
+  - source: {kind: ConfigMap, name: luna-settings, fieldPath: data.FILES_HOST}
+    targets:
+      - select: {kind: Certificate, name: luna-tls}
+        fieldPaths: [spec.dnsNames.5]
+      - select: {kind: Deployment, name: luna-files}
+        fieldPaths:
+          - spec.template.spec.containers.[name=luna-files].env.[name=APP_URL].value
           - spec.template.spec.initContainers.[name=migrate].env.[name=APP_URL].value
         options: {delimiter: "//", index: 1}

@@ -13,6 +13,7 @@ resources:
   - dashboard.yaml
   - auth.yaml
   - pages.yaml
+  - files.yaml
   - networkpolicy.yaml
 configMapGenerator:
   - name: luna-config
@@ -22,3 +23,5 @@ configMapGenerator:
       - LUNA_DASHBOARD_URL=http://luna-dashboard:8080
       - LUNA_AUTH_URL=http://luna-auth:8080
       - LUNA_PAGES_URL=http://luna-pages:8080
+      - LUNA_FILES_URL=http://luna-files:8080
+      - FILES_STORAGE=s3

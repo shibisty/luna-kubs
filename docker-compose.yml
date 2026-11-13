@@ -7,7 +7,9 @@
 # Only nginx (80/443), postgres (127.0.0.1:5433, for `gtr dev`) and mail
 # publish ports. The services talk over luna-net: luna-auth checks API keys
 # against luna-dashboard's internal API, the dashboard manages users through
-# luna-auth's; luna-pages checks keys the same way; nginx exposes no /internal/.
+# luna-auth's; luna-pages and luna-files check keys the same way; nginx exposes
+# no /internal/. luna-files keeps the bytes in the files-data volume unless
+# FILES_STORAGE=s3 (Spaces) is set in .env.
 
 x-app-build: &app-build
   context: .
@@ -34,6 +36,9 @@ x-dashboard-env: &dashboard-env
   # signs them out, 30 days with Remember me: DASHBOARD_REFRESH_TTL, DASHBOARD_REMEMBER_TTL).
   AUTH_SESSION_TTL: 30m
   LUNA_PAGES_TOKEN: ${LUNA_SERVICE_TOKEN}
+  # The file browser and the editor's assets call luna-files' internal API.
+  LUNA_FILES_URL: http://luna-files:8080
+  LUNA_FILES_TOKEN: ${LUNA_SERVICE_TOKEN}
 
 x-auth-env: &auth-env
   APP_NAME: luna-auth
@@ -65,10 +70,36 @@ x-pages-env: &pages-env
   LUNA_DASHBOARD_URL: http://luna-dashboard:8080
   LUNA_DASHBOARD_TOKEN: ${LUNA_SERVICE_TOKEN:?set LUNA_SERVICE_TOKEN in .env}
 
+x-files-env: &files-env
+  APP_NAME: luna-files
+  APP_ENV: ${APP_ENV:-local}
+  APP_URL: https://${FILES_DOMAIN:-files.luna.local}
+  HTTP_ADDR: ":8080"
+  HTTP_TRUSTED_PROXIES: private
+  API_DOCS: "true"
+  DB_DRIVER: postgres
+  DATABASE_DSN: postgres://files_service:${FILES_DB_PASSWORD:-files_password}@postgres:5432/files_db?sslmode=require
+  LUNA_DASHBOARD_URL: http://luna-dashboard:8080
+  LUNA_DASHBOARD_TOKEN: ${LUNA_SERVICE_TOKEN:?set LUNA_SERVICE_TOKEN in .env}
+  # disk: the files-data volume, served at /blobs/ with signed links; s3:
+  # DigitalOcean Spaces (FILES_S3_* and FILES_PUBLIC_URL in .env).
+  FILES_STORAGE: ${FILES_STORAGE:-disk}
+  FILES_DISK_ROOT: /data/files
+  FILES_DISK_URL: https://${FILES_DOMAIN:-files.luna.local}/blobs
+  FILES_DISK_SECRET: ${FILES_DISK_SECRET:-${LUNA_SERVICE_TOKEN}}
+  FILES_S3_ENDPOINT: ${FILES_S3_ENDPOINT:-}
+  FILES_S3_REGION: ${FILES_S3_REGION:-us-east-1}
+  FILES_S3_BUCKET: ${FILES_S3_BUCKET:-}
+  FILES_S3_KEY: ${FILES_S3_KEY:-}
+  FILES_S3_SECRET: ${FILES_S3_SECRET:-}
+  FILES_PUBLIC_URL: ${FILES_PUBLIC_URL:-}
+  FILES_QUOTA: ${FILES_QUOTA:-1GiB}
+
 x-db-passwords: &db-passwords
   AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth_password}
   DASHBOARD_DB_PASSWORD: ${DASHBOARD_DB_PASSWORD:-dashboard_password}
   PAGES_DB_PASSWORD: ${PAGES_DB_PASSWORD:-pages_password}
+  FILES_DB_PASSWORD: ${FILES_DB_PASSWORD:-files_password}
 
 services:
   certbot-init:
@@ -231,6 +262,49 @@ services:
     networks:
       - luna-net
 
+  luna-files-migrate:
+    image: luna-files:local
+    pull_policy: never
+    command: ["migrate"]
+    restart: "no"
+    healthcheck:
+      disable: true
+    environment: *files-env
+    depends_on:
+      postgres-init:
+        condition: service_completed_successfully
+    networks:
+      - luna-net
+
+  # One-shot: the files volume belongs to the image's non-root user.
+  luna-files-volume:
+    image: alpine:3.20
+    command: ["chown", "65532:65532", "/data/files"]
+    restart: "no"
+    volumes:
+      - files-data:/data/files
+
+  luna-files:
+    build:
+      <<: *app-build
+      args:
+        SERVICE: luna-files
+    image: luna-files:local
+    container_name: luna-files
+    restart: unless-stopped
+    environment: *files-env
+    volumes:
+      - files-data:/data/files
+    depends_on:
+      luna-files-migrate:
+        condition: service_completed_successfully
+      luna-files-volume:
+        condition: service_completed_successfully
+      luna-dashboard:
+        condition: service_healthy
+    networks:
+      - luna-net
+
   nginx:
     build:
       context: ./nginx
@@ -246,6 +320,8 @@ services:
       luna-dashboard:
         condition: service_healthy
       luna-pages:
+        condition: service_healthy
+      luna-files:
         condition: service_healthy
     volumes:
       - ./nginx/sites:/etc/nginx/sites-available
@@ -325,6 +401,7 @@ secrets:
 
 volumes:
   postgres-data:
+  files-data:
   postgres-tls:
   mail_data:
   certbot_conf:

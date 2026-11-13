@@ -56,6 +56,9 @@ spec:
             - name: PAGES_DB_PASSWORD
               valueFrom:
                 secretKeyRef: {name: luna-secrets, key: PAGES_DB_PASSWORD}
+            - name: FILES_DB_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: luna-secrets, key: FILES_DB_PASSWORD}
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "auth", "-d", "auth_db"]

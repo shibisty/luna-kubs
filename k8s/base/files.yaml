@@ -1,0 +1,77 @@
+# The file storage of client applications (folders, files), behind API keys.
+# The bytes are in an S3 bucket (FILES_STORAGE=s3: DigitalOcean Spaces, set
+# in the overlay); the local overlay keeps them on a volume instead.
+apiVersion: v1
+kind: Service
+metadata:
+  name: luna-files
+spec:
+  selector:
+    app: luna-files
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: luna-files
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: luna-files
+  template:
+    metadata:
+      labels:
+        app: luna-files
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        # Pending migrations first; the server starts only when they succeed.
+        - name: migrate
+          image: luna-files:local
+          imagePullPolicy: IfNotPresent
+          args: ["migrate"]
+          envFrom: &envFrom
+            - configMapRef: {name: luna-config}
+          env: &env
+            - name: APP_NAME
+              value: luna-files
+            - name: APP_URL
+              value: https://files.luna.local
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: luna-secrets, key: FILES_DB_PASSWORD}
+            - name: DATABASE_DSN
+              value: "postgres://files_service:$(DB_PASSWORD)@postgres:5432/files_db?sslmode=require"
+            - name: LUNA_DASHBOARD_TOKEN
+              valueFrom:
+                secretKeyRef: {name: luna-secrets, key: LUNA_SERVICE_TOKEN}
+          securityContext: &containerSecurity
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+      containers:
+        - name: luna-files
+          image: luna-files:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom: *envFrom
+          env: *env
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: {cpu: 50m, memory: 32Mi}
+            limits: {memory: 256Mi}
+          securityContext: *containerSecurity

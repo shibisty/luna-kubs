@@ -1,0 +1,32 @@
+# luna-files: the file storage of client applications (API keys). In
+# production the bytes are in Spaces: clients upload there with presigned
+# URLs and read public files from its CDN.
+server {
+    server_name ${FILES_HOST};
+    listen 443 ssl proxy_protocol;
+    http2 on;
+    # cert-manager keeps the certificate (Secret luna-tls) up to date;
+    # startup.sh reloads nginx every 6 hours to pick up a renewed one.
+    ssl_certificate /etc/nginx/tls/tls.crt;
+    ssl_certificate_key /etc/nginx/tls/tls.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # API uploads are at most 10 MiB (larger ones go straight to Spaces).
+    client_max_body_size 11m;
+
+    # The dashboard's file browser API, for the cluster network only.
+    location /internal/ {
+        return 404;
+    }
+
+    location / {
+        proxy_pass http://luna-files:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        # The client, as the DigitalOcean load balancer reports it (PROXY protocol).
+        proxy_set_header X-Real-IP $proxy_protocol_addr;
+        proxy_set_header X-Forwarded-For $proxy_protocol_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+    }
+}

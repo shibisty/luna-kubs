@@ -10,7 +10,7 @@ server {
     ssl_certificate_key /etc/nginx/tls/tls.key;
     ssl_protocols TLSv1.2 TLSv1.3;
 
-    client_max_body_size 5m; # the page editor sends projects up to 4 MiB
+    client_max_body_size 11m; # the page editor's projects (4 MiB), uploads to luna-files (10 MiB)
 
     location /internal/ {
         return 404;
