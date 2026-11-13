@@ -8,6 +8,7 @@
 !luna-dashboard/
 !luna-auth/
 !luna-pages/
+!luna-files/
 
 # Never: local secrets, build output, generated module files.
 **/.env
