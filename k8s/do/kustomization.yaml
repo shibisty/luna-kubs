@@ -142,8 +142,11 @@ patches:
                   - {name: FILES_S3_BUCKET, valueFrom: {configMapKeyRef: {name: luna-settings, key: FILES_S3_BUCKET}}}
                   - {name: FILES_PUBLIC_URL, valueFrom: {configMapKeyRef: {name: luna-settings, key: FILES_PUBLIC_URL}}}
                   - {name: FILES_QUOTA, valueFrom: {configMapKeyRef: {name: luna-settings, key: FILES_QUOTA}}}
+                  - {name: FILES_KEEP_VERSIONS, valueFrom: {configMapKeyRef: {name: luna-settings, key: FILES_KEEP_VERSIONS, optional: true}}}
+                  - {name: FILES_CDN_ENDPOINT_ID, valueFrom: {configMapKeyRef: {name: luna-settings, key: FILES_CDN_ENDPOINT_ID, optional: true}}}
                   - {name: FILES_S3_KEY, valueFrom: {secretKeyRef: {name: luna-secrets, key: FILES_S3_KEY}}}
                   - {name: FILES_S3_SECRET, valueFrom: {secretKeyRef: {name: luna-secrets, key: FILES_S3_SECRET}}}
+                  - {name: FILES_DO_TOKEN, valueFrom: {secretKeyRef: {name: luna-secrets, key: FILES_DO_TOKEN, optional: true}}}
             initContainers:
               - name: migrate
                 env: *filesEnv
