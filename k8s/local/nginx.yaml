@@ -22,6 +22,8 @@ metadata:
   name: luna-nginx
 spec:
   replicas: 1
+  # The host ports are free only once the old pod is gone.
+  strategy: {type: Recreate}
   selector:
     matchLabels:
       app: luna-nginx
@@ -35,10 +37,15 @@ spec:
           image: luna-nginx:local
           imagePullPolicy: IfNotPresent
           ports:
+            # Also on the minikube VM's own ports 80 and 443: point the hosts
+            # file at `minikube ip` and no tunnel or port-forward is needed
+            # (luna.ps1 start writes it).
             - name: http
               containerPort: 80
+              hostPort: 80
             - name: https
               containerPort: 443
+              hostPort: 443
           readinessProbe:
             tcpSocket: {port: https}
             periodSeconds: 5

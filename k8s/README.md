@@ -21,26 +21,39 @@ Kustomize, in three parts:
 
 ## minikube (`local/`)
 
-```sh
-# 1. Images (from the repository root)
-docker compose build
-minikube image load luna-postgres:18 luna-dashboard:local luna-auth:local luna-pages:local luna-files:local luna-nginx:local
+On Windows (the Hyper-V driver) `luna.ps1` in the repository root does all of it:
 
-# 2. Secrets: copy and fill in (generate the two service secrets with luna-cli)
-cp k8s/local/secrets.env.example k8s/local/secrets.env
-cd luna-cli
-go run . key:generate --env ../k8s/local/secrets.env --name AUTH_JWT_SECRET
-go run . key:generate --env ../k8s/local/secrets.env --name LUNA_SERVICE_TOKEN
-cd ..
-
-# 3. Apply, then give the LoadBalancer an address
-kubectl apply -k k8s/local
-kubectl -n luna get pods -w
-minikube tunnel
+```powershell
+.\start.bat                 # or .\luna.ps1 start
+.\stop.bat                  # minikube stop: the data stays
+.\restart.bat               # stop + start
+.\luna.ps1 restart auth     # one service: auth, dashboard, pages, files, nginx, postgres
+.\luna.ps1 build dashboard  # rebuild images inside minikube and restart them (all without names)
+.\luna.ps1 seed             # db:seed --only Platform in the dashboard
+.\luna.ps1 status           # minikube, the pods, the health of every host
+.\luna.ps1 logs files
 ```
 
-Point `auth.luna.local`, `dashboard.luna.local`, `pages.luna.local` and `files.luna.local` at the tunnel address in
-your hosts file. The certificate is self-signed.
+`start` starts minikube. The first time, it also builds the images inside minikube and
+generates `k8s/local/secrets.env` with luna-cli. Then it applies `k8s/local`, waits for the
+services and points `auth.luna.local`, `dashboard.luna.local`, `pages.luna.local` and
+`files.luna.local` at `minikube ip` in the hosts file. nginx listens on the VM's own ports 80
+and 443 (`hostPort`), so you need no `minikube tunnel` and no `port-forward`. Hyper-V and the
+hosts file need an administrator, so the script asks for one (UAC). The certificate is
+self-signed.
+
+Images are built inside minikube (`minikube docker-env`) rather than loaded with
+`minikube image load`, because that command needs `wmic`, which current Windows no longer has.
+
+By hand, anywhere else:
+
+```sh
+eval $(minikube docker-env) && docker compose build      # images inside minikube
+cp k8s/local/secrets.env.example k8s/local/secrets.env   # fill in (luna-cli key:generate)
+kubectl apply -k k8s/local
+kubectl -n luna get pods -w
+# hosts: the four *.luna.local names -> $(minikube ip)
+```
 
 ## DigitalOcean (`do/`)
 
@@ -82,6 +95,7 @@ go run . key:generate --env ../k8s/do/secrets.env --name LUNA_SERVICE_TOKEN
 go run . key:generate --env ../k8s/do/secrets.env --name POSTGRES_PASSWORD
 go run . key:generate --env ../k8s/do/secrets.env --name AUTH_DB_PASSWORD
 go run . key:generate --env ../k8s/do/secrets.env --name DASHBOARD_DB_PASSWORD
+go run . key:generate --env ../k8s/do/secrets.env --name PAGES_DB_PASSWORD
 go run . key:generate --env ../k8s/do/secrets.env --name FILES_DB_PASSWORD
 go run . key:generate --env ../k8s/do/secrets.env --name MAIL_PASSWORD
 cd ..

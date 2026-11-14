@@ -27,6 +27,10 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        # distroless' nonroot user by number: the image names it (USER nonroot),
+        # which the kubelet cannot check against runAsNonRoot.
+        runAsUser: 65532
+        runAsGroup: 65532
         seccompProfile: {type: RuntimeDefault}
       initContainers:
         # Pending migrations first; the server starts only when they succeed.
