@@ -16,3 +16,6 @@
 [submodule "luna-files"]
 	path = luna-files
 	url = https://github.com/shibisty/luna-files.git
+[submodule "luna-forms"]
+	path = luna-forms
+	url = https://github.com/shibisty/luna-forms.git

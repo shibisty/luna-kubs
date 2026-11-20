@@ -53,6 +53,9 @@ spec:
             - name: LUNA_DASHBOARD_TOKEN
               valueFrom:
                 secretKeyRef: {name: luna-secrets, key: LUNA_SERVICE_TOKEN}
+            # Published forms post to luna-forms and load its runtime.js.
+            - name: PAGES_FORMS_URL
+              value: https://forms.luna.local
           securityContext: &containerSecurity
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

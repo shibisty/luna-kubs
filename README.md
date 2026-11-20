@@ -10,6 +10,7 @@ application then uses Luna's services with those keys.
 | [luna-auth](luna-auth) | Registration and sign-in of the application's own end users (username or email + password), JWTs per application, rotating refresh tokens, password reset, user administration, and the application's own data about each user (text values by key). |
 | [luna-pages](luna-pages) | A small CMS per application: a site, layouts, templates with typed fields, and pages (free ones built in GrapesJS, or entries that fill a template); drafts behind an editor API, published and rendered as sanitized HTML. |
 | [luna-files](luna-files) | A small drive per application: folders and files in DigitalOcean Spaces, uploads through the API or presigned straight to Spaces, public CDN links and signed links for private files, a quota per application. |
+| [luna-forms](luna-forms) | The forms of the applications' sites (made in the page editor with grapesjs-forms): their schema, the public endpoint sites post to (validated like the editor does, a honeypot, rate limits), the submissions, and the files visitors send (private, in luna-files). |
 
 Shared code and tools:
 
@@ -36,6 +37,8 @@ and each member's `go.mod` is generated (git-ignored).
 | `pages:write` | edit and publish pages |
 | `files:read` | list and read files (browser keys: public files only) |
 | `files:write` | upload, change and delete files |
+| `forms:read` | read forms and their submissions (server keys) |
+| `forms:write` | change forms, delete submissions (server keys) |
 
 Keys go in the `X-API-Key` header. A server key (`sk_live_…`) is for
 backends and is refused when a browser sends it; a browser key (`pk_live_…`)
@@ -45,7 +48,7 @@ works only from the application's allowed origins and only with
 ## Layout
 
 ```
-luna-dashboard/  luna-auth/  luna-pages/  luna-files/  luna-keys/  luna-cli/   the workspace (submodules)
+luna-dashboard/  luna-auth/  luna-pages/  luna-files/  luna-forms/  luna-keys/  luna-cli/   the workspace (submodules)
 docker/app.Dockerfile      one image recipe for every service
 docker-compose.yml         the local stack
 nginx/                     the edge: TLS, the service hosts
@@ -60,7 +63,7 @@ You need Docker, Go 1.26 and gtr. Point the hosts at your machine
 (`C:\Windows\System32\drivers\etc\hosts` or `/etc/hosts`):
 
 ```
-127.0.0.1 dashboard.luna.local auth.luna.local pages.luna.local files.luna.local mail.luna.local
+127.0.0.1 dashboard.luna.local auth.luna.local pages.luna.local files.luna.local forms.luna.local mail.luna.local
 ```
 
 ### The whole stack in Docker
@@ -85,6 +88,8 @@ docker compose up -d
 - https://files.luna.local/docs — luna-files' API (a key with `files:read` / `files:write`); locally the
   files are kept in the `files-data` volume and served at `/blobs/` (set `FILES_STORAGE=s3` and the
   `FILES_S3_*` variables in `.env` to use Spaces)
+- https://forms.luna.local/docs — luna-forms' API (a server key with `forms:read` / `forms:write`);
+  published forms post to `/submit/{app}/forms/{id}/submissions` there, without a key
 
 The certificate is self-signed. `postgres-init` creates any missing service
 database (also on an existing volume), then migrations run before each
@@ -108,7 +113,7 @@ cd luna-dashboard && cp .env.example .env    # then the secrets, see the file
 gtr dev                                      # rebuilds and restarts on change
 ```
 
-The same for luna-auth, luna-pages and luna-files, whose `LUNA_DASHBOARD_TOKEN` must be one of the
+The same for luna-auth, luna-pages, luna-files and luna-forms, whose `LUNA_DASHBOARD_TOKEN` must be one of the
 dashboard's `LUNA_SERVICE_TOKENS`. Each service's README has the rest.
 
 ### Kubernetes

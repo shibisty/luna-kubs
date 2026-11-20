@@ -331,6 +331,7 @@
     "luna-cli",
     "luna-dashboard",
     "luna-files",
+    "luna-forms",
     "luna-keys",
     "luna-pages"
   ]

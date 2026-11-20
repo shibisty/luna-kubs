@@ -1,0 +1,86 @@
+# The forms of the applications' sites and what visitors send through them
+# (public: /submit/…, /runtime.js; the forms API behind API keys). The files
+# of submissions go to luna-files' internal API.
+apiVersion: v1
+kind: Service
+metadata:
+  name: luna-forms
+spec:
+  selector:
+    app: luna-forms
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: luna-forms
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: luna-forms
+  template:
+    metadata:
+      labels:
+        app: luna-forms
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        # distroless' nonroot user by number: the image names it (USER nonroot),
+        # which the kubelet cannot check against runAsNonRoot.
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        # Pending migrations first; the server starts only when they succeed.
+        - name: migrate
+          image: luna-forms:local
+          imagePullPolicy: IfNotPresent
+          args: ["migrate"]
+          envFrom: &envFrom
+            - configMapRef: {name: luna-config}
+          env: &env
+            - name: APP_NAME
+              value: luna-forms
+            - name: APP_URL
+              value: https://forms.luna.local
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: luna-secrets, key: FORMS_DB_PASSWORD}
+            - name: DATABASE_DSN
+              value: "postgres://forms_service:$(DB_PASSWORD)@postgres:5432/forms_db?sslmode=require"
+            - name: LUNA_DASHBOARD_TOKEN
+              valueFrom:
+                secretKeyRef: {name: luna-secrets, key: LUNA_SERVICE_TOKEN}
+            - name: FORMS_PUBLIC_URL
+              value: https://forms.luna.local
+            - name: LUNA_FILES_TOKEN
+              valueFrom:
+                secretKeyRef: {name: luna-secrets, key: LUNA_SERVICE_TOKEN}
+          securityContext: &containerSecurity
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+      containers:
+        - name: luna-forms
+          image: luna-forms:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom: *envFrom
+          env: *env
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: {cpu: 50m, memory: 32Mi}
+            limits: {memory: 256Mi}
+          securityContext: *containerSecurity

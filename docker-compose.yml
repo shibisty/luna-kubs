@@ -9,7 +9,8 @@
 # against luna-dashboard's internal API, the dashboard manages users through
 # luna-auth's; luna-pages and luna-files check keys the same way; nginx exposes
 # no /internal/. luna-files keeps the bytes in the files-data volume unless
-# FILES_STORAGE=s3 (Spaces) is set in .env.
+# FILES_STORAGE=s3 (Spaces) is set in .env. luna-forms keeps what visitors
+# send through the sites' forms; their files go to luna-files.
 
 x-app-build: &app-build
   context: .
@@ -39,6 +40,9 @@ x-dashboard-env: &dashboard-env
   # The file browser and the editor's assets call luna-files' internal API.
   LUNA_FILES_URL: http://luna-files:8080
   LUNA_FILES_TOKEN: ${LUNA_SERVICE_TOKEN}
+  # The editor's forms and the submissions pages call luna-forms' internal API.
+  LUNA_FORMS_URL: http://luna-forms:8080
+  LUNA_FORMS_TOKEN: ${LUNA_SERVICE_TOKEN}
 
 x-auth-env: &auth-env
   APP_NAME: luna-auth
@@ -69,6 +73,8 @@ x-pages-env: &pages-env
   DATABASE_DSN: postgres://pages_service:${PAGES_DB_PASSWORD:-pages_password}@postgres:5432/pages_db?sslmode=require
   LUNA_DASHBOARD_URL: http://luna-dashboard:8080
   LUNA_DASHBOARD_TOKEN: ${LUNA_SERVICE_TOKEN:?set LUNA_SERVICE_TOKEN in .env}
+  # Published forms post to luna-forms (and load its runtime.js from there).
+  PAGES_FORMS_URL: https://${FORMS_DOMAIN:-forms.luna.local}
 
 x-files-env: &files-env
   APP_NAME: luna-files
@@ -98,11 +104,28 @@ x-files-env: &files-env
   FILES_CDN_ENDPOINT_ID: ${FILES_CDN_ENDPOINT_ID:-}
   FILES_DO_TOKEN: ${FILES_DO_TOKEN:-}
 
+x-forms-env: &forms-env
+  APP_NAME: luna-forms
+  APP_ENV: ${APP_ENV:-local}
+  APP_URL: https://${FORMS_DOMAIN:-forms.luna.local}
+  HTTP_ADDR: ":8080"
+  HTTP_TRUSTED_PROXIES: private
+  API_DOCS: "true"
+  DB_DRIVER: postgres
+  DATABASE_DSN: postgres://forms_service:${FORMS_DB_PASSWORD:-forms_password}@postgres:5432/forms_db?sslmode=require
+  LUNA_DASHBOARD_URL: http://luna-dashboard:8080
+  LUNA_DASHBOARD_TOKEN: ${LUNA_SERVICE_TOKEN:?set LUNA_SERVICE_TOKEN in .env}
+  FORMS_PUBLIC_URL: https://${FORMS_DOMAIN:-forms.luna.local}
+  # The files of submissions: luna-files' internal API, the same token.
+  LUNA_FILES_URL: http://luna-files:8080
+  LUNA_FILES_TOKEN: ${LUNA_SERVICE_TOKEN}
+
 x-db-passwords: &db-passwords
   AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:-auth_password}
   DASHBOARD_DB_PASSWORD: ${DASHBOARD_DB_PASSWORD:-dashboard_password}
   PAGES_DB_PASSWORD: ${PAGES_DB_PASSWORD:-pages_password}
   FILES_DB_PASSWORD: ${FILES_DB_PASSWORD:-files_password}
+  FORMS_DB_PASSWORD: ${FORMS_DB_PASSWORD:-forms_password}
 
 services:
   certbot-init:
@@ -308,6 +331,37 @@ services:
     networks:
       - luna-net
 
+  luna-forms-migrate:
+    image: luna-forms:local
+    pull_policy: never
+    command: ["migrate"]
+    restart: "no"
+    healthcheck:
+      disable: true
+    environment: *forms-env
+    depends_on:
+      postgres-init:
+        condition: service_completed_successfully
+    networks:
+      - luna-net
+
+  luna-forms:
+    build:
+      <<: *app-build
+      args:
+        SERVICE: luna-forms
+    image: luna-forms:local
+    container_name: luna-forms
+    restart: unless-stopped
+    environment: *forms-env
+    depends_on:
+      luna-forms-migrate:
+        condition: service_completed_successfully
+      luna-dashboard:
+        condition: service_healthy
+    networks:
+      - luna-net
+
   nginx:
     build:
       context: ./nginx
@@ -325,6 +379,8 @@ services:
       luna-pages:
         condition: service_healthy
       luna-files:
+        condition: service_healthy
+      luna-forms:
         condition: service_healthy
     volumes:
       - ./nginx/sites:/etc/nginx/sites-available

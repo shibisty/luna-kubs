@@ -31,6 +31,7 @@ configMapGenerator:
       - nginx/dashboard.luna.conf
       - nginx/pages.luna.conf
       - nginx/files.luna.conf
+      - nginx/forms.luna.conf
 secretGenerator:
   - name: luna-secrets
     envs:

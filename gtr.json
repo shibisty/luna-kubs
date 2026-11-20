@@ -13,6 +13,7 @@
         "luna-auth",
         "luna-pages",
         "luna-files",
+        "luna-forms",
         "luna-cli"
     ],
     "scripts": {

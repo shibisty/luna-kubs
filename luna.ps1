@@ -5,7 +5,7 @@ luna.ps1 - Luna on minikube (Windows, the Hyper-V driver).
                               manifests, the hosts file; waits until every service is up
   .\luna.ps1 stop             stops minikube (the data stays)
   .\luna.ps1 restart          stop + start
-  .\luna.ps1 restart auth     restarts one service (auth, dashboard, pages, files, nginx)
+  .\luna.ps1 restart auth     restarts one service (auth, dashboard, pages, files, forms, nginx)
   .\luna.ps1 build [svc...]   builds images inside minikube and restarts those services
                               (all of them without names)
   .\luna.ps1 seed             db:seed --only Platform in the dashboard
@@ -30,9 +30,9 @@ param(
 # make fatal; every command's exit code is checked instead (Run).
 $ErrorActionPreference = "Continue"
 $Root = $PSScriptRoot
-$Hosts = @("auth.luna.local", "dashboard.luna.local", "pages.luna.local", "files.luna.local")
-$Services = @("auth", "dashboard", "pages", "files")
-$Known = @("auth", "dashboard", "pages", "files", "nginx", "postgres")
+$Hosts = @("auth.luna.local", "dashboard.luna.local", "pages.luna.local", "files.luna.local", "forms.luna.local")
+$Services = @("auth", "dashboard", "pages", "files", "forms")
+$Known = @("auth", "dashboard", "pages", "files", "forms", "nginx", "postgres")
 
 function Info($msg) { Write-Host "luna: $msg" -ForegroundColor Cyan }
 function Fail($msg) { Write-Host "luna: $msg" -ForegroundColor Red; exit 1 }
@@ -83,7 +83,7 @@ function Ensure-Secrets {
 
 function Images-Missing {
     Use-MinikubeDocker
-    foreach ($img in "luna-dashboard:local", "luna-auth:local", "luna-pages:local", "luna-files:local", "luna-nginx:local", "luna-postgres:18") {
+    foreach ($img in "luna-dashboard:local", "luna-auth:local", "luna-pages:local", "luna-files:local", "luna-forms:local", "luna-nginx:local", "luna-postgres:18") {
         & docker image inspect $img *> $null
         if ($LASTEXITCODE -ne 0) { return $true }
     }
@@ -176,7 +176,7 @@ switch ($Command) {
     "restart" {
         if ($Names.Count -gt 0) {
             foreach ($n in $Names) {
-                if ($Known -notcontains $n) { Fail "unknown service $n (auth, dashboard, pages, files, nginx, postgres)" }
+                if ($Known -notcontains $n) { Fail "unknown service $n (auth, dashboard, pages, files, forms, nginx, postgres)" }
                 $kind = if ($n -eq "postgres") { "statefulset/postgres" } else { "deploy/luna-$n" }
                 Run kubectl @("--context", "minikube", "-n", "luna", "rollout", "restart", $kind)
                 Run kubectl @("--context", "minikube", "-n", "luna", "rollout", "status", $kind, "--timeout=300s")

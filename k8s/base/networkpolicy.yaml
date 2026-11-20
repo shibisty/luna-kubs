@@ -14,10 +14,11 @@ spec:
         - podSelector: {matchLabels: {app: luna-auth}}
         - podSelector: {matchLabels: {app: luna-pages}}
         - podSelector: {matchLabels: {app: luna-files}}
+        - podSelector: {matchLabels: {app: luna-forms}}
       ports:
         - port: 5432
 ---
-# The dashboard: nginx (the console), luna-auth, luna-pages and luna-files (key introspection).
+# The dashboard: nginx (the console), luna-auth, luna-pages, luna-files and luna-forms (key introspection).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -32,6 +33,7 @@ spec:
         - podSelector: {matchLabels: {app: luna-auth}}
         - podSelector: {matchLabels: {app: luna-pages}}
         - podSelector: {matchLabels: {app: luna-files}}
+        - podSelector: {matchLabels: {app: luna-forms}}
       ports:
         - port: 8080
 ---
@@ -77,7 +79,26 @@ spec:
   policyTypes: ["Ingress"]
   ingress:
     - from:
-        # nginx (the public API) and the dashboard (the internal file API).
+        # nginx (the public API), the dashboard (the internal file API) and
+        # luna-forms (the files of submissions).
+        - podSelector: {matchLabels: {app: luna-nginx}}
+        - podSelector: {matchLabels: {app: luna-dashboard}}
+        - podSelector: {matchLabels: {app: luna-forms}}
+      ports:
+        - port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: luna-forms
+spec:
+  podSelector:
+    matchLabels: {app: luna-forms}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        # nginx (the sites' submissions, the public API) and the dashboard
+        # (the internal forms API).
         - podSelector: {matchLabels: {app: luna-nginx}}
         - podSelector: {matchLabels: {app: luna-dashboard}}
       ports:
