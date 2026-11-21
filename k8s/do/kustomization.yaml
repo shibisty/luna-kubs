@@ -1,10 +1,11 @@
 # Luna on DigitalOcean Kubernetes. Once (see README.md): cert-manager, the
-# registry integration, settings.env, secrets.env, digitalocean.env. Then:
+# registry integration, settings.env, secrets.env, cloudflare.env. Then:
 #
 #   kubectl apply -k k8s/do
 #
-# Images come from your DigitalOcean Container Registry: set the registry
-# name and the tags below (the same tag you pushed).
+# Images come from your DigitalOcean Container Registry, all in one
+# repository (<registry>/luna) and told apart by tag: <service>-<version>, as
+# k8s\do\push.bat pushes them. Set the registry name and the versions below.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: luna
@@ -20,26 +21,26 @@ resources:
 
 images:
   - name: luna-dashboard
-    newName: registry.digitalocean.com/luna-registry/luna-dashboard
-    newTag: "0.1.0"
+    newName: registry.digitalocean.com/lunaregistry/luna
+    newTag: "dashboard-0.4.0"
   - name: luna-auth
-    newName: registry.digitalocean.com/luna-registry/luna-auth
-    newTag: "0.1.0"
+    newName: registry.digitalocean.com/lunaregistry/luna
+    newTag: "auth-0.1.0"
   - name: luna-pages
-    newName: registry.digitalocean.com/luna-registry/luna-pages
-    newTag: "0.1.0"
+    newName: registry.digitalocean.com/lunaregistry/luna
+    newTag: "pages-0.1.0"
   - name: luna-files
-    newName: registry.digitalocean.com/luna-registry/luna-files
-    newTag: "0.1.0"
+    newName: registry.digitalocean.com/lunaregistry/luna
+    newTag: "files-0.1.0"
   - name: luna-nginx
-    newName: registry.digitalocean.com/luna-registry/luna-nginx
-    newTag: "0.1.0"
+    newName: registry.digitalocean.com/lunaregistry/luna
+    newTag: "nginx-0.1.1"
   - name: luna-postgres
-    newName: registry.digitalocean.com/luna-registry/luna-postgres
-    newTag: "18"
+    newName: registry.digitalocean.com/lunaregistry/luna
+    newTag: "postgres-18"
   - name: luna-mail
-    newName: registry.digitalocean.com/luna-registry/luna-mail
-    newTag: "0.1.0"
+    newName: registry.digitalocean.com/lunaregistry/luna
+    newTag: "mail-0.1.0"
 
 configMapGenerator:
   - name: luna-config
@@ -60,6 +61,7 @@ configMapGenerator:
       - nginx/pages.conf.template
       - nginx/files.conf.template
       - nginx/webmail.conf.template
+      - nginx/gtr.conf.template
   - name: roundcube-config
     files:
       - roundcube/config.inc.php
@@ -70,9 +72,9 @@ secretGenerator:
       - secrets.env
   # Referenced by the Issuers by name (kustomize does not rewrite
   # cert-manager's references), so no hash suffix.
-  - name: digitalocean-dns
+  - name: cloudflare-dns
     envs:
-      - digitalocean.env
+      - cloudflare.env
     options:
       disableNameSuffixHash: true
 
@@ -83,12 +85,12 @@ patches:
     patch: |-
       - op: add
         path: /spec/template/spec/imagePullSecrets
-        value: [{name: luna-registry}]
+        value: [{name: lunaregistry}]
   - target: {kind: StatefulSet}
     patch: |-
       - op: add
         path: /spec/template/spec/imagePullSecrets
-        value: [{name: luna-registry}]
+        value: [{name: lunaregistry}]
   # roundcube comes from Docker Hub: no registry secret needed, but harmless.
   # Production storage and size.
   - target: {kind: StatefulSet, name: postgres}
@@ -200,3 +202,9 @@ replacements:
           - spec.template.spec.containers.[name=luna-files].env.[name=APP_URL].value
           - spec.template.spec.initContainers.[name=migrate].env.[name=APP_URL].value
         options: {delimiter: "//", index: 1}
+  # The gtr registry (a Luna client application in namespace gtr, served
+  # through this edge): its host in the certificate.
+  - source: {kind: ConfigMap, name: luna-settings, fieldPath: data.GTR_HOST}
+    targets:
+      - select: {kind: Certificate, name: luna-tls}
+        fieldPaths: [spec.dnsNames.6]

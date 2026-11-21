@@ -58,23 +58,28 @@ kubectl -n luna get pods -w
 ## DigitalOcean (`do/`)
 
 What you need: a DOKS cluster (two nodes of 2 GB or more), a Container
-Registry, `doctl` and `kubectl` set up for both, and the domain's DNS hosted
-at DigitalOcean (Networking → Domains): cert-manager proves the domain with
-DNS-01 through the DigitalOcean API, the web and the mail host alike.
+Registry, `doctl` and `kubectl` set up for both, and the domain's DNS in
+Cloudflare: cert-manager proves the domain with DNS-01 through the Cloudflare
+API, the web and the mail host alike. Only the hosts in `settings.env` are
+touched (their records and `_acme-challenge` TXT records); the domain's other
+records stay as they are.
 
 **1. Images.** Build, log in, push, connect the registry to the cluster:
 
 ```bat
 docker compose build
 doctl registry login
-k8s\do\push.bat <registry> 0.1.0
+k8s\do\push.bat <registry> 0.1.0   # the registry's name, e.g. lunaregistry
 doctl kubernetes cluster registry add <cluster>
 ```
 
-Then in `k8s/do/kustomization.yaml` replace `luna-registry` with your
-registry's name (in `images` and in the two `imagePullSecrets` patches: the
-integration names the pull secret after the registry) and set the tags. A
-new release: build, push a new tag, change the tags, apply.
+All images go into one repository, `<registry>/luna`, told apart by tag
+(`dashboard-0.1.0`, `auth-0.1.0`, …, `postgres-18`): the Basic plan ($5)
+allows five repositories and Luna has seven images. Then in
+`k8s/do/kustomization.yaml` put your registry's name (in `images` and in the
+two `imagePullSecrets` patches: the integration names the pull secret after
+the registry) and set the versions. A new release: build, push a new tag,
+change the versions, apply.
 
 **2. cert-manager**, once per cluster (check its site for a newer patch release):
 
@@ -88,7 +93,7 @@ kubectl -n cert-manager wait --for=condition=Available deployment --all --timeou
 ```sh
 cp k8s/do/settings.env.example k8s/do/settings.env           # hosts, Let's Encrypt email
 cp k8s/do/secrets.env.example  k8s/do/secrets.env            # passwords, service secrets
-cp k8s/do/digitalocean.env.example k8s/do/digitalocean.env   # API token for DNS-01
+cp k8s/do/cloudflare.env.example k8s/do/cloudflare.env       # Cloudflare API token for DNS-01
 cd luna-cli
 go run . key:generate --env ../k8s/do/secrets.env --name AUTH_JWT_SECRET
 go run . key:generate --env ../k8s/do/secrets.env --name LUNA_SERVICE_TOKEN
@@ -118,7 +123,9 @@ kubectl -n luna get certificate luna-tls -w
 kubectl -n luna get svc luna-nginx luna-mail      # the two load balancers' addresses
 ```
 
-**5. DNS.** `AUTH_HOST`, `DASHBOARD_HOST`, `PAGES_HOST`, `FILES_HOST`, `WEBMAIL_HOST` → A record to
+**5. DNS** in Cloudflare, every record **DNS only** (grey cloud: the load
+balancers take raw TCP with PROXY protocol, and mail cannot be proxied at
+all). `AUTH_HOST`, `DASHBOARD_HOST`, `PAGES_HOST`, `FILES_HOST`, `WEBMAIL_HOST` → A record to
 `luna-nginx`'s address; `MAIL_HOST` → A record to `luna-mail`'s; an MX record
 for `MAIL_DOMAIN` → `MAIL_HOST`; for delivery, SPF (`v=spf1 mx -all`) and
 later DKIM/DMARC. Then uncomment `do-loadbalancer-hostname` in
@@ -141,8 +148,14 @@ later DKIM/DMARC. Then uncomment `do-loadbalancer-hostname` in
   hours and postfix/dovecot every 12, so a renewal is live within a day. To
   try the setup without Let's Encrypt's rate limits, point the Certificate's
   `issuerRef` at `letsencrypt-staging` first. If the DNS-01 check hangs, give
-  cert-manager DigitalOcean's name servers:
-  `--dns01-recursive-nameservers-only --dns01-recursive-nameservers=ns1.digitalocean.com:53`.
+  cert-manager public resolvers:
+  `--dns01-recursive-nameservers-only --dns01-recursive-nameservers=1.1.1.1:53,8.8.8.8:53`.
+- **Load balancer type.** `luna-nginx` asks for a `REGIONAL` load balancer:
+  newer DOKS releases default to `REGIONAL_NETWORK`, which has no PROXY
+  protocol, and nginx then never answers (connections time out). The type of
+  an existing load balancer cannot be changed: delete the Service, apply
+  again, and point the DNS records at the new address. `luna-mail` uses no
+  PROXY protocol, so either type works for it.
 - **Client addresses.** The web load balancer speaks PROXY protocol to nginx,
   which passes the client address on as `X-Real-IP`; the services trust it
   from the cluster network (`HTTP_TRUSTED_PROXIES=private`, fullstack ≥ 0.1.1).

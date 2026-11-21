@@ -7,11 +7,16 @@ metadata:
   name: luna-nginx
   annotations:
     service.beta.kubernetes.io/do-loadbalancer-name: luna-web
+    # A regional (HTTP/TCP) load balancer: newer DOKS releases default to
+    # REGIONAL_NETWORK, a network load balancer without PROXY protocol, and
+    # nginx here listens with proxy_protocol. The type cannot be changed on
+    # an existing load balancer: delete the Service and apply again (new IP).
+    service.beta.kubernetes.io/do-loadbalancer-type: REGIONAL
     service.beta.kubernetes.io/do-loadbalancer-enable-proxy-protocol: "true"
     # Once the hosts point at the load balancer's address, uncomment and set
     # one of them: pods that call a public host then go through the load
     # balancer (and get the PROXY header) instead of straight to nginx.
-    # service.beta.kubernetes.io/do-loadbalancer-hostname: auth.example.com
+    service.beta.kubernetes.io/do-loadbalancer-hostname: auth.shibisty.com
 spec:
   type: LoadBalancer
   selector:

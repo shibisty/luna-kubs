@@ -1,5 +1,5 @@
-# Plain HTTP on every host: to HTTPS. Rendered by startup.sh (envsubst of
-# ${AUTH_HOST} ${DASHBOARD_HOST} ${PAGES_HOST} ${FILES_HOST} ${WEBMAIL_HOST} only; nginx's own $variables stay).
+# Plain HTTP on every host: to HTTPS. Rendered by startup.sh (envsubst of the
+# *_HOST variables only; nginx's own $variables stay).
 server {
     listen 80 proxy_protocol default_server;
     server_name _;
