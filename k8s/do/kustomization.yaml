@@ -22,13 +22,13 @@ resources:
 images:
   - name: luna-dashboard
     newName: registry.digitalocean.com/lunaregistry/luna
-    newTag: "dashboard-0.5.0"
+    newTag: "dashboard-0.5.1"
   - name: luna-auth
     newName: registry.digitalocean.com/lunaregistry/luna
     newTag: "auth-0.1.0"
   - name: luna-pages
     newName: registry.digitalocean.com/lunaregistry/luna
-    newTag: "pages-0.2.0"
+    newTag: "pages-0.3.0"
   - name: luna-files
     newName: registry.digitalocean.com/lunaregistry/luna
     newTag: "files-0.1.0"
