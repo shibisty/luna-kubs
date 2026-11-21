@@ -51,7 +51,7 @@ spec:
     kind: Issuer
     name: letsencrypt
   dnsNames: # settings.env: AUTH_HOST, DASHBOARD_HOST, WEBMAIL_HOST, MAIL_HOST,
-             # PAGES_HOST, FILES_HOST, GTR_HOST
+             # PAGES_HOST, FILES_HOST, GTR_HOST, FORMS_HOST
     - auth.example.com
     - dashboard.example.com
     - webmail.example.com
@@ -59,6 +59,7 @@ spec:
     - pages.example.com
     - files.example.com
     - gtr.example.com
+    - forms.example.com
   privateKey:
     algorithm: ECDSA
     size: 256

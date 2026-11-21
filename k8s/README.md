@@ -4,17 +4,18 @@ Kustomize, in three parts:
 
 | Folder | |
 | --- | --- |
-| `base/` | what every cluster runs: postgres (StatefulSet), luna-dashboard, luna-auth, luna-pages and luna-files (migrations in an init container), NetworkPolicy, namespace `luna` |
+| `base/` | what every cluster runs: postgres (StatefulSet), luna-dashboard, luna-auth, luna-pages, luna-files and luna-forms (migrations in an init container), NetworkPolicy, namespace `luna` |
 | `local/` | minikube: images loaded from docker compose, nginx with a self-signed certificate |
 | `do/` | DigitalOcean Kubernetes: images from DigitalOcean Container Registry, Let's Encrypt certificates (cert-manager), load balancers, mail and webmail |
 
 | Workload | Image | Notes |
 | --- | --- | --- |
-| `postgres` (StatefulSet) | `luna-postgres:18` | TLS, creates `auth_db`, `dashboard`, `pages_db` and `files_db` on first start |
+| `postgres` (StatefulSet) | `luna-postgres:18` | TLS, creates `auth_db`, `dashboard`, `pages_db`, `files_db` and `forms_db` on first start |
 | `luna-dashboard` | `luna-dashboard` | init container `migrate`, then the server on 8080 |
 | `luna-auth` | `luna-auth` | init container `migrate`, then the server on 8080 |
 | `luna-pages` | `luna-pages` | init container `migrate`, then the server on 8080 |
 | `luna-files` | `luna-files` | init container `migrate`, then the server on 8080; the bytes in Spaces (`do/`) or on a 2 GiB volume (`local/`, `FILES_STORAGE=disk`) |
+| `luna-forms` | `luna-forms` | init container `migrate`, then the server on 8080; the sites' forms post to it, the files of submissions go to luna-files |
 | `luna-nginx` (LoadBalancer) | `luna-nginx` | 80 → 443; hides `/internal/` on every service host |
 | `luna-mail` (StatefulSet, LoadBalancer) | `luna-mail` | `do/` only: postfix + dovecot, 25 / 587 / 993 |
 | `roundcube` | `roundcube/roundcubemail` | `do/` only: webmail |
@@ -75,7 +76,7 @@ doctl kubernetes cluster registry add <cluster>
 
 All images go into one repository, `<registry>/luna`, told apart by tag
 (`dashboard-0.1.0`, `auth-0.1.0`, …, `postgres-18`): the Basic plan ($5)
-allows five repositories and Luna has seven images. Then in
+allows five repositories and Luna has eight images. Then in
 `k8s/do/kustomization.yaml` put your registry's name (in `images` and in the
 two `imagePullSecrets` patches: the integration names the pull secret after
 the registry) and set the versions. A new release: build, push a new tag,
@@ -102,6 +103,7 @@ go run . key:generate --env ../k8s/do/secrets.env --name AUTH_DB_PASSWORD
 go run . key:generate --env ../k8s/do/secrets.env --name DASHBOARD_DB_PASSWORD
 go run . key:generate --env ../k8s/do/secrets.env --name PAGES_DB_PASSWORD
 go run . key:generate --env ../k8s/do/secrets.env --name FILES_DB_PASSWORD
+go run . key:generate --env ../k8s/do/secrets.env --name FORMS_DB_PASSWORD
 go run . key:generate --env ../k8s/do/secrets.env --name MAIL_PASSWORD
 cd ..
 ```
@@ -125,7 +127,7 @@ kubectl -n luna get svc luna-nginx luna-mail      # the two load balancers' addr
 
 **5. DNS** in Cloudflare, every record **DNS only** (grey cloud: the load
 balancers take raw TCP with PROXY protocol, and mail cannot be proxied at
-all). `AUTH_HOST`, `DASHBOARD_HOST`, `PAGES_HOST`, `FILES_HOST`, `WEBMAIL_HOST` → A record to
+all). `AUTH_HOST`, `DASHBOARD_HOST`, `PAGES_HOST`, `FILES_HOST`, `FORMS_HOST`, `WEBMAIL_HOST` → A record to
 `luna-nginx`'s address; `MAIL_HOST` → A record to `luna-mail`'s; an MX record
 for `MAIL_DOMAIN` → `MAIL_HOST`; for delivery, SPF (`v=spf1 mx -all`) and
 later DKIM/DMARC. Then uncomment `do-loadbalancer-hostname` in
@@ -169,7 +171,11 @@ later DKIM/DMARC. Then uncomment `do-loadbalancer-hostname` in
   dashboard, only nginx and the dashboard reach luna-auth and luna-pages,
   only the services reach postgres. DOKS enforces it (Cilium); minikube only with `--cni=calico`.
 - The database passwords apply when the postgres volume is created. A
-  service added later (luna-pages) gets its database on an existing volume
-  with `kubectl -n luna exec postgres-0 -- bash /docker-entrypoint-initdb.d/10-luna.sh`
-  (idempotent; push the new luna-postgres image and let the pod restart first). To start
+  service added later (luna-pages, luna-forms) gets its database on an existing volume
+  by running the repository's script in the pod (idempotent; it needs the new
+  password in the pod's environment, so apply first: the changed Secret restarts postgres):
+  `kubectl -n luna exec -i postgres-0 -- bash -s < postgres/docker-entrypoint-initdb.d/10-luna.sh`
+  (PowerShell: `Get-Content postgres\docker-entrypoint-initdb.d\10-luna.sh -Raw | kubectl -n luna exec -i postgres-0 -- bash -s`).
+  The service then gets past its `migrate` init container on its next restart
+  (`kubectl -n luna rollout restart deploy/luna-forms`). To start
   over locally: `kubectl delete -k k8s/local && kubectl -n luna delete pvc --all`.

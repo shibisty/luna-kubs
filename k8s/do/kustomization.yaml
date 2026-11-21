@@ -22,16 +22,19 @@ resources:
 images:
   - name: luna-dashboard
     newName: registry.digitalocean.com/lunaregistry/luna
-    newTag: "dashboard-0.4.0"
+    newTag: "dashboard-0.5.0"
   - name: luna-auth
     newName: registry.digitalocean.com/lunaregistry/luna
     newTag: "auth-0.1.0"
   - name: luna-pages
     newName: registry.digitalocean.com/lunaregistry/luna
-    newTag: "pages-0.1.0"
+    newTag: "pages-0.2.0"
   - name: luna-files
     newName: registry.digitalocean.com/lunaregistry/luna
     newTag: "files-0.1.0"
+  - name: luna-forms
+    newName: registry.digitalocean.com/lunaregistry/luna
+    newTag: "forms-0.1.0"
   - name: luna-nginx
     newName: registry.digitalocean.com/lunaregistry/luna
     newTag: "nginx-0.1.1"
@@ -60,6 +63,7 @@ configMapGenerator:
       - nginx/dashboard.conf.template
       - nginx/pages.conf.template
       - nginx/files.conf.template
+      - nginx/forms.conf.template
       - nginx/webmail.conf.template
       - nginx/gtr.conf.template
   - name: roundcube-config
@@ -208,3 +212,21 @@ replacements:
     targets:
       - select: {kind: Certificate, name: luna-tls}
         fieldPaths: [spec.dnsNames.6]
+  # luna-forms: its own address, and where the published pages post their
+  # forms and load runtime.js from.
+  - source: {kind: ConfigMap, name: luna-settings, fieldPath: data.FORMS_HOST}
+    targets:
+      - select: {kind: Certificate, name: luna-tls}
+        fieldPaths: [spec.dnsNames.7]
+      - select: {kind: Deployment, name: luna-forms}
+        fieldPaths:
+          - spec.template.spec.containers.[name=luna-forms].env.[name=APP_URL].value
+          - spec.template.spec.initContainers.[name=migrate].env.[name=APP_URL].value
+          - spec.template.spec.containers.[name=luna-forms].env.[name=FORMS_PUBLIC_URL].value
+          - spec.template.spec.initContainers.[name=migrate].env.[name=FORMS_PUBLIC_URL].value
+        options: {delimiter: "//", index: 1}
+      - select: {kind: Deployment, name: luna-pages}
+        fieldPaths:
+          - spec.template.spec.containers.[name=luna-pages].env.[name=PAGES_FORMS_URL].value
+          - spec.template.spec.initContainers.[name=migrate].env.[name=PAGES_FORMS_URL].value
+        options: {delimiter: "//", index: 1}

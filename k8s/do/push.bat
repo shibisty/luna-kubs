@@ -1,13 +1,13 @@
 @echo off
 rem Tag the images docker compose built and push them to your DigitalOcean
 rem Container Registry, all into one repository (<registry>/luna, tags
-rem <service>-<tag>: the Basic plan allows five repositories, Luna has seven
+rem <service>-<tag>: the Basic plan allows five repositories, Luna has eight
 rem images):
 rem                       k8s\do\push.bat <registry> <tag> [service...]
 rem e.g.                  k8s\do\push.bat lunaregistry 0.1.0
 rem               or     k8s\do\push.bat registry.digitalocean.com/lunaregistry 0.1.0
 rem only some images:     k8s\do\push.bat lunaregistry 0.1.1 nginx
-rem   (dashboard auth pages files nginx mail postgres; postgres is always tag 18)
+rem   (dashboard auth pages files forms nginx mail postgres; postgres is always tag 18)
 rem First: doctl registry login   (and docker compose build), in a window
 rem without minikube's docker-env.
 rem Then set the same registry and versions in k8s\do\kustomization.yaml.
@@ -24,7 +24,7 @@ set T=%~2
 shift
 shift
 if not "%~1"=="" goto args
-for %%s in (dashboard auth pages files nginx mail postgres) do call :push %%s || exit /b 1
+for %%s in (dashboard auth pages files forms nginx mail postgres) do call :push %%s || exit /b 1
 goto done
 :args
 if "%~1"=="" goto done
