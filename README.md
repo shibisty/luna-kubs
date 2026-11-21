@@ -124,6 +124,21 @@ Container Registry, Let's Encrypt certificates through cert-manager (DNS-01),
 load balancers for the web and for mail, and webmail. DigitalOcean blocks
 outgoing SMTP from its machines until its support lifts the block.
 
+## Committing across the repositories
+
+`repos.mjs` works on every submodule and this repository at once (Node 18+, no dependencies):
+
+```
+node repos.mjs status                       branch, changes, ↑ to push ↓ to pull, gtr.json version of each
+node repos.mjs commit "message" [--push]    git add -A + commit in every changed submodule, then here
+node repos.mjs push                         the submodules first, then this repository
+node repos.mjs pull                         --ff-only here, then in every submodule
+```
+
+`--only pages,forms` / `--skip …` pick submodules (`--only` leaves this repository out unless
+`--root` is added), `--no-root` / `--root-only` the other way round. `commit` here takes every
+change of this repository, the submodules' new commits included.
+
 ## Tests
 
 ```bash
